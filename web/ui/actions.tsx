@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useVigil } from './live'
+import { Icon } from './icon'
 
 export function useRead<T>(path: string | null) {
   const { api } = useVigil()
@@ -33,7 +34,7 @@ export function Download({id,label='Download CSV'}: {id:string,label?:string}) {
     <button className="button" disabled={pending} onClick={async()=>{
       setPending(true);setError(false)
       try{await download(id)}catch{setError(true)}finally{setPending(false)}
-    }}>{pending?'Preparing CSV…':label}</button>
+    }}><Icon name="download"/>{pending?'Preparing CSV…':label}</button>
     {error&&<p role="alert">CSV download failed. Try again.</p>}
   </div>
 }

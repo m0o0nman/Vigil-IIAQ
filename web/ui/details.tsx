@@ -5,34 +5,39 @@ import Link from 'next/link'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Download, useRead } from './actions'
 import { Frame } from './frame'
+import { Icon } from './icon'
 import { useVigil } from './live'
 import { ages, reasons, statusOf } from './state'
 import forecastSpec from '../../training/specs/forecast.json'
 import type { Analytics } from '../src/readback'
 
+const methodNames: Record<string, string> = { persistence:'Persistence', linear:'Linear', robust:'Robust' }
 const number=(v:number|null|undefined,digits=1)=>v==null?'—':v.toFixed(digits)
 type ChartRow = {t:number,[series:string]:number|null}
 type Series = {key:string,label:string,colour:string,dash?:string}
-const forest='var(--text)', sage='var(--status-fresh)', amber='var(--status-stuffy)', rose='var(--status-poor)'
+const forest='var(--text)'
+const sage='color-mix(in srgb, var(--status-fresh) 70%, var(--text))'
+const amber='color-mix(in srgb, var(--status-stuffy) 66%, var(--text))'
+const rose='color-mix(in srgb, var(--status-poor) 76%, var(--text))'
 
 function Chart({title,unit,rows,series}: {title:string,unit:string,rows:ChartRow[],series:Series[]}) {
   const available=rows.some(row=>series.some(({key})=>row[key]!=null))
   return <section className="chart" aria-label={title}>
     <h3>{title}</h3>
     {!available?<p className="empty">No observations in this session window.</p>:<>
-      <div className="chart-legend">{series.map(entry=><span key={entry.key}><i style={{borderColor:entry.colour,borderStyle:entry.dash?'dashed':'solid'}}/>{entry.label}</span>)}</div>
+      <div className="chart-legend">{series.map(entry=><span key={entry.key}><span className="legend-mark" style={{borderTopColor:entry.colour,borderTopStyle:entry.dash?'dashed':'solid'}} aria-hidden="true"/>{entry.label}</span>)}</div>
       <div className="plot">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{width:480,height:230}}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{width:480,height:215}}>
           <LineChart data={rows} accessibilityLayer margin={{left:0,right:12,top:8,bottom:4}}>
-            <CartesianGrid vertical={false} stroke="var(--surface)"/>
+            <CartesianGrid vertical={false} stroke="var(--soft-rule)" />
             <XAxis dataKey="t" type="number" domain={['dataMin','dataMax']} tickFormatter={t=>Math.round(t/60000)+'m'}
-              tick={{fontSize:12,fill:forest}} minTickGap={28}/>
-            <YAxis width={50} domain={['auto','auto']} tick={{fontSize:12,fill:forest}}/>
+              tick={{fontSize:12,fill:'var(--muted)'}} axisLine={false} tickLine={false} minTickGap={28}/>
+            <YAxis width={50} domain={['auto','auto']} tick={{fontSize:12,fill:'var(--muted)'}} axisLine={false} tickLine={false}/>
             <Tooltip labelFormatter={t=>'Device uptime '+(Number(t)/60000).toFixed(1)+' min'}
               formatter={(value,name)=>[typeof value==='number'?value.toFixed(1)+' '+unit:value,name]}
-              contentStyle={{background:'var(--background)',color:forest,borderColor:'var(--surface)'}}/>
+              contentStyle={{background:'var(--background)',color:forest,borderColor:'var(--rule)',boxShadow:'none'}}/>
             {series.map(s=><Line key={s.key} data={rows.filter(row=>Object.hasOwn(row,s.key))} dataKey={s.key} name={s.label} stroke={s.colour} strokeDasharray={s.dash}
-              strokeWidth={2} dot={false} activeDot={{r:4}} isAnimationActive={false} connectNulls={false}/>)}
+              strokeWidth={1.35} dot={false} activeDot={{r:3}} isAnimationActive={false} connectNulls={false}/>)}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -84,8 +89,8 @@ function DetailsPanel() {
       <p>Explore the measurements behind VIGIL’s room status.</p>
       <div className="actions">
         {latest&&<Download id={latest.boot_id}/>}
-        {latest&&<button className="button" onClick={data.reload}>Refresh history</button>}
-        <Link className="button" href="/settings">Models &amp; calibration ↗</Link>
+        {latest&&<button className="button" onClick={data.reload}><Icon name="refresh"/>Refresh history</button>}
+        <Link className="button" href="/settings">Models &amp; calibration <Icon name="arrow"/></Link>
       </div>
     </div>
     {data.error&&<p className="notice" role="alert">{data.error}</p>}
@@ -105,13 +110,13 @@ function DetailsPanel() {
       series={[{key:'observed',label:'Observed',colour:forest},{key:'persistence',label:'Persistence',colour:sage,dash:'4 4'},
         {key:'linear',label:'Linear',colour:amber,dash:'6 3'},{key:'robust',label:'Robust',colour:rose,dash:'2 3'}]}/>
     {latest?.forecast&&<dl className="value-list forecasts">
-      {Object.entries(latest.forecast).map(([name,value])=><div key={name}><dt>{name}</dt><dd>{live.co2!==null&&value!=null?number(value,0)+' ppm':'—'}</dd></div>)}
+      {Object.entries(latest.forecast).map(([name,value])=><div key={name}><dt>{methodNames[name]??name}</dt><dd>{live.co2!==null&&value!=null?number(value,0)+' ppm':'—'}</dd></div>)}
     </dl>}
     <div className="data-table"><table><caption>Matched forecast error · current model window</caption>
       <thead><tr><th>Method</th><th>Matches</th><th>MAE</th><th>RMSE</th><th>Bias</th></tr></thead>
       <tbody>{['persistence','linear','robust'].map(method=>{
         const result=metrics?.[method]
-        return <tr key={method}><th scope="row">{method}</th><td>{result?.n??'—'}</td>
+        return <tr key={method}><th scope="row">{methodNames[method]}</th><td>{result?.n??'—'}</td>
           {[result?.mae,result?.rmse,result?.bias].map((value,index)=><td key={index}>{result?.n?number(value)+' ppm':'—'}</td>)}</tr>
       })}</tbody>
     </table></div>

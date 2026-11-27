@@ -1,6 +1,6 @@
 # Phase 5 · Consumer interface
 
-VIGIL uses a light ivory layout, forest text and the supplied branching logo. The monitor foregrounds the room status and uses a breathing orb as a visual anchor. Details and Settings hold the observation history and owner actions.
+VIGIL uses a light ivory layout, forest text and the supplied branching logo. A shared editorial grid aligns headers, panels and chart sections. The monitor foregrounds the CO₂ reading and room status, with the breathing orb as a visual anchor. Details and Settings hold observation history and owner actions.
 
 ## Screens and integration
 
@@ -22,7 +22,7 @@ Two optional **owner-only read views** use existing Phase 3/4 paths and records.
 
 The HTML receives CSS custom properties from inputs/brand/colours/colours.json through ui/theme.ts. The palette was checked against the supplied brand files. Ivory #F5F4EC dominates the canvas, with moss #DDE2C8 panels, sage #B2BD7E accents and forest #303D2B type and controls. Status marks use the source Fresh #6E916B, OK #B2BD7E, Stuffy #C3A15E and Poor #B66D5E. Public logo, favicon, font attribution and audio text copies match their tracked originals byte for byte. The interface uses the forest SVG on light surfaces.
 
-Syne uses next/font/google with its variable 400–800 range and Arial/sans-serif fallback. Forest text has calculated contrast **10.41:1 on ivory** and **8.64:1 on moss**. Status labels are textual as well as coloured. Navigation supports keyboard focus and a skip link. Form labels and feedback describe actions, rollback uses a native confirmation dialog, and reduced-motion mode stops the breathing animation. Chromium checked major controls and page overflow at representative widths. Screen-reader and full accessibility conformance testing remain outstanding.
+Syne uses next/font/google with Arial/sans-serif fallback. The interface uses upright Regular 400 for headings, readings, labels and body copy. Medium 500 marks the selected fan mode, current calibration stage and essential emphasis. Scale, spacing and alignment create hierarchy. Thin rules, restrained rectangular controls and a consistent set of outline icons guide actions. Forest text has calculated contrast **10.41:1 on ivory** and **8.64:1 on moss**. Status labels are textual as well as coloured. Navigation supports keyboard focus and a skip link. Form labels and feedback describe actions, rollback uses a native confirmation dialog, and reduced-motion mode stops the breathing animation. Chromium checked major controls and page overflow at representative widths. Screen-reader and full accessibility conformance testing remain outstanding.
 
 All display boundaries live in web/ui/bands.ts. They are **provisional owner-approved interpretations**. Fresh is below 600 ppm, OK starts at 600, Stuffy at 750 and Poor at 1,000. The 750 and 1,000 values come from inputs/code/VIGIL_Phase3_Fixed.ino line 25. The owner supplied 600 as a display cutoff. Dry is below 30% RH, Comfortable starts at 30% and Humid at 60%, based on the owner's simplified interpretation of EPA humidity guidance. Temperature stays numeric. These bands describe the displayed observations. [EPA indoor humidity guidance](https://www.epa.gov/indoor-air-quality-iaq/what-can-i-do-improve-indoor-air-quality-my-home)
 
@@ -32,15 +32,17 @@ The calibration breathing break uses an original prompt and a restrained prism a
 
 The browser used the same production screen components and a temporary route providing **labelled synthetic fixtures**. The harness lives under web/tests. Production routing contains no fixture route.
 
+- [Owner sign-in](phase5-screenshots/authentication.png)
 - [Welcome](phase5-screenshots/welcome.png)
 - [Desktop dashboard](phase5-screenshots/dashboard.png)
 - [Calibration measuring](phase5-screenshots/calibration.png)
 - [Details and analytics](phase5-screenshots/details.png)
+- [Settings](phase5-screenshots/settings.png)
 - [Tablet dashboard](phase5-screenshots/tablet-dashboard.png)
 - [Mobile dashboard](phase5-screenshots/mobile-dashboard.png)
 - [Stale device](phase5-screenshots/stale-device.png)
 
-Chromium at 1440, 820 and 390 pixels rendered the source SVG and Syne without horizontal page overflow. The browser exercised keyboard skip-link focus, auth error and unauthorized views, fan pending/retry/override, calibration start and abort, charts, missing history metrics, and absent/stale observations. The provider was mocked for those interactions. Real Firebase login, subscription, calibration, CSV transfer and rollback on a live project remain unverified.
+Chromium at 1440, 820 and 390 pixels rendered the source SVG and Syne without horizontal page overflow. The browser checked that visible headings, text and buttons used upright weights at or below 500 and that reduced-motion mode stopped the orb. The browser exercised keyboard skip-link focus, auth error and unauthorized views, fan pending/retry/override, calibration start and abort, charts, missing history metrics, and absent/stale observations. The provider was mocked for those interactions. Real Firebase login, subscription, calibration, CSV transfer and rollback on a live project remain unverified.
 
 ## Verification commands
 
@@ -53,7 +55,7 @@ The normal `NEXT_TELEMETRY_DISABLED=1 npm run build` reached Next.js and failed 
 NEXT_FONT_GOOGLE_MOCKED_RESPONSES=/workspace/Vigil-IIAQ/firmware/build/phase5/font-test.cjs NEXT_TELEMETRY_DISABLED=1 npm run build -- --webpack
 ```
 
-Next.js 16.4.6 compiled successfully, generated seven static page entries (including framework entries) and listed all seven dynamic API endpoints. Browser evidence was captured by running `PHASE5_PLAYWRIGHT=/opt/codex/cua_node/lib/node_modules/playwright-core node web/tests/browser.cjs` from the repository root against the local Next dev server with the same Syne response. The temporary app/phase5-fixture/page.tsx re-exported tests/browser-fixture.tsx. After verification the fixture route and generated dev cache were moved out of the application. The browser run printed PASS and captured seven screenshots. The first post-fixture build found stale Next-generated dev types. Moving the dev cache aside cleared the error. No browser testing dependency was added to the project.
+Next.js 16.4.6 compiled successfully, generated seven static page entries (including framework entries) and listed all seven dynamic API endpoints. Browser evidence was captured by running `PHASE5_PLAYWRIGHT=/opt/codex/cua_node/lib/node_modules/playwright-core node web/tests/browser.cjs` from the repository root against the local Next dev server with the same Syne response. The temporary app/phase5-fixture/page.tsx re-exported tests/browser-fixture.tsx. After verification the fixture route and generated dev cache were moved out of the application. The browser run printed PASS and captured nine screenshots. The first post-fixture build found stale Next-generated dev types. Moving the dev cache aside cleared the error. No browser testing dependency was added to the project.
 
 The local webpack production server, started with `node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3988` from web/, returned HTTP 200 for all five UI routes and the forest logo, HTTP 404 for /phase5-fixture, and HTTP 401 for unauthenticated history, analytics, command and calibration-start requests.
 

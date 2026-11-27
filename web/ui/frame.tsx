@@ -19,7 +19,7 @@ export function Orb({active=true}: {active?: boolean}) {
   return <div className={'orb-field' + (active ? '' : ' still')} aria-hidden="true">
     <div className="orbit orbit-outer" /><div className="orbit orbit-middle" /><div className="orbit orbit-inner" />
     <div className="orb-disk"><div className="orb-core"/></div>
-    <i className="orbit-dot"/><i className="orbit-dot second"/>
+    <span className="orbit-dot"/>
   </div>
 }
 
@@ -35,14 +35,17 @@ function Login() {
     catch { setError('Sign-in failed. Check your credentials and connection, then try again.') }
     finally { setPending(false) }
   }
-  return <div className="narrow content-pad">
-    <p className="eyebrow">Owner access</p><h1>Sign in to VIGIL</h1>
-    <form className="form-stack" onSubmit={submit}>
-      <label>Email<input name="email" type="email" autoComplete="username" required /></label>
-      <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
-      <button className="button primary" disabled={pending}>{pending?'Signing in…':'Sign in'}</button>
-      {error && <p className="notice" role="alert">{error}</p>}
-    </form>
+  return <div className="auth-layout content-pad">
+    <div className="narrow">
+      <p className="eyebrow">Owner access</p><h1>Sign in to VIGIL</h1>
+      <form className="form-stack" onSubmit={submit}>
+        <label>Email<input name="email" type="email" autoComplete="username" required /></label>
+        <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+        <button className="button primary" disabled={pending}>{pending?'Signing in…':'Sign in'}</button>
+        {error && <p className="notice" role="alert">{error}</p>}
+      </form>
+    </div>
+    <div className="orb-panel" aria-hidden="true"><Orb active={false}/></div>
   </div>
 }
 
@@ -61,7 +64,7 @@ export function Frame({ children }: { children: ReactNode }) {
             <Link key={path} href={path} aria-current={location===path?'page':undefined}>{label}</Link>
           )}
         </nav>
-        <span className="connection"><i className={live.deviceLive?'online':''}/>
+        <span className="connection"><span className={'signal'+(live.deviceLive?' online':'')} aria-hidden="true"/>
           {!liveReady?'Connecting…':liveError?'Live feed unavailable':live.connection}</span>
       </>}
     </div></header>

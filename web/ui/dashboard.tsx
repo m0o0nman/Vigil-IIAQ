@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { Frame, Orb } from './frame'
 import { useVigil } from './live'
+import { Icon } from './icon'
 import { modes, reasons, statusOf } from './state'
 
 type Mode=keyof typeof modes
@@ -65,12 +66,12 @@ export function Dashboard() {
     view.observation
   return <Frame>
     <div className="dashboard">
-      {calibrating && <div className="banner"><span>Calibration in progress</span><Link href="/calibrate">View progress ↗</Link></div>}
+      {calibrating && <div className="banner"><span>Calibration in progress</span><Link href="/calibrate">View progress <Icon name="arrow"/></Link></div>}
       <section className="room-status">
         <div className="room-copy">
-          <p className="eyebrow">Your room · Carbon dioxide</p>
+          <p className="eyebrow">Carbon dioxide</p>
           <h1 className="status-title" data-band={view.co2Band?.key}>
-            <i aria-hidden="true"/>{view.co2Band?.label??'Unavailable'}
+            <span className="status-mark" aria-hidden="true"/>{view.co2Band?.label??'Unavailable'}
           </h1>
           <p className="co2-reading">{view.co2===null?'—':view.co2.toLocaleString()} <span>ppm CO₂</span></p>
           <p className="intro">{view.co2Band?.description??unavailable}</p>
@@ -79,14 +80,14 @@ export function Dashboard() {
         <Orb active={view.co2!==null}/>
       </section>
       <section className="measurements" aria-label="Room measurements">
-        <div><h2>Occupancy</h2><p>{view.occupancy===null?'Unavailable':`about ${view.occupancy} people`}</p><small>CO₂-based estimate</small></div>
+        <div><h2>Occupancy</h2><p>{view.occupancy===null?'Unavailable':<><span className="occupancy-context">About </span>{view.occupancy}<span className="occupancy-context"> people</span></>}</p><small>CO₂-based estimate</small></div>
         <div><h2>Climate</h2><p>{view.temp===null?'—':view.temp.toFixed(1)+' °C'}</p>
           <small>{view.rh===null?'Humidity unavailable':`${view.rh.toFixed(0)}% RH · ${view.humidity}`}</small></div>
         <div><h2>Fumes</h2><p className="sensor-word">{view.fumes}</p><small>Gas-response sensor</small></div>
         <div><h2>Dust</h2><p className="sensor-word">{dustStatus}</p><small>{provisionalDust?'Provisional optical reference':'Optical response sensor'}</small></div>
       </section>
       <FanControl enabled={view.deviceLive}/>
-      <div className="dashboard-foot"><p>{projection!==null?`10-minute CO₂ forecast · ${Math.round(projection)} ppm`:'CO₂ forecast unavailable'}</p><Link href="/details" className="button">See details <span aria-hidden="true">↗</span></Link></div>
+      <div className="dashboard-foot"><p>{projection!==null?`10-minute CO₂ forecast · ${Math.round(projection)} ppm`:'CO₂ forecast unavailable'}</p><Link href="/details" className="button">See details <Icon name="arrow"/></Link></div>
     </div>
   </Frame>
 }

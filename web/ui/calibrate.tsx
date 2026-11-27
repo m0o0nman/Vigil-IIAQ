@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Download, Restore, useRead } from './actions'
 import { Frame, Orb } from './frame'
+import { Icon } from './icon'
 import { RequestError, useVigil } from './live'
 import type { CalibrationArchive } from '../src/readback'
 import type { summary } from '../src/session'
@@ -20,13 +21,13 @@ type Progress = Partial<Omit<ReturnType<typeof summary>,'status'>> & { status:st
 function BreathBreak() {
   const [player,setPlayer]=useState(false)
   return <aside className="breath-break">
-    <Orb/><div className="prism" aria-hidden="true"><i/><i/><i/></div>
+    <Orb/><div className="prism" aria-hidden="true"><span/><span/><span/></div>
     <h2>Let the room settle.</h2>
     <p>Relax your shoulders. Take one easy breath.</p>
     {!player ? <button className="button" onClick={()=>setPlayer(true)}>Open music player</button> :
       <iframe src={embed} title="Pink Floyd — Breathe (In The Air) (2023 Remaster)"
         allow="encrypted-media; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen/>}
-    <p className="support">If the player is unavailable, take a quiet breath or <a href={watch} target="_blank" rel="noreferrer">open Pink Floyd on YouTube ↗</a>.</p>
+    <p className="support">If the player is unavailable, take a quiet breath or <a href={watch} target="_blank" rel="noreferrer">open Pink Floyd on YouTube <Icon name="external"/></a>.</p>
   </aside>
 }
 
