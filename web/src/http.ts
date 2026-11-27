@@ -44,7 +44,9 @@ export async function ownerRoute(r:Request,action:string,store:Store=firebaseSto
     const keys:Record<string,string>={command:'mode',start:'sensor',abort:'session',rollback:'model version'}
     const key=r.headers.get('idempotency-key')??''
     if(action!=='status'){
-      object(data,keys[action]);check(/^[a-zA-Z0-9_-]{1,128}$/.test(key),'Idempotency-Key required')
+      object(data,action==='start' && 'conditions_confirmed' in data?'sensor conditions_confirmed':keys[action]);
+      if('conditions_confirmed' in data)check(typeof data.conditions_confirmed==='boolean')
+      check(/^[a-zA-Z0-9_-]{1,128}$/.test(key),'Idempotency-Key required')
     }
     return json(await ownerChange(store,action,data,Date.now(),key))
   }catch(e){return failed(e)}

@@ -1,5 +1,9 @@
 import {isDeepStrictEqual} from 'node:util'
-import {calibrationRow,columns,type Sensor} from './calibration'
+import {type Sensor} from './calibration'
+import {collect,save,summary} from './session'
+import {newRun,reject,type Run} from './quality'
+import {allowed,savedAnchor,type Version} from './versions'
+import type {Anchor} from './models'
 import {createHash,randomUUID} from 'node:crypto'
 import {approved,type Specs} from './models'
 import {decision,initial,metrics,process,type Result,type State,type Mode} from './engine'
@@ -7,9 +11,10 @@ import {check,elapsed,Failure,type Batch} from './protocol'
 import {blank,type Store,type Tx,type Projection} from './store'
 const viewPath='system/projection'
 export const modelNames=Object.keys(approved) as (keyof Specs)[]
-type Version={approved:boolean,spec:Specs[keyof Specs]}
+
 async function load(tx:Tx){
   const specs={...approved}, ids=[]
+  let anchor:Anchor|null=null
   for(const name of modelNames){
     const path='models/'+name
     const pointer=await tx.read<{active:string}>(path)
@@ -17,15 +22,15 @@ async function load(tx:Tx){
     const vpath=path+'/versions/'+id
     const version=await tx.read<Version>(vpath)
     if(!pointer&&!version){tx.put(path,{active:id});tx.put(vpath,{approved:true,spec:approved[name]})}
-    else if(!version?.approved||!pointer||!isDeepStrictEqual(version.spec,approved[name]))throw new Failure(503,'Model configuration incomplete')
-    else Object.assign(specs,{[name]:version.spec})
+    else if(!pointer||!allowed(name,version,id))throw new Failure(503,'Model configuration incomplete')
+    else {Object.assign(specs,{[name]:version!.spec});if(name==='mq135')anchor=savedAnchor(version)}
     ids.push(name+'='+id)
   }
-  return {specs,versions:ids.join(';')}
+  return {specs,versions:ids.join(';'),anchor}
 }
 export type Minute={minute:number,rows:Record<string,Result>,metrics:ReturnType<typeof metrics>,missed:number}
 export type Session={state:State,retired:boolean,seenAt:number,open:Minute|null}
-export type Control={view:Projection,active:Session|null,bundle:Awaited<ReturnType<typeof load>>|null}
+export type Control={lastCalibration?:string,view:Projection,active:Session|null,bundle:Awaited<ReturnType<typeof load>>|null}
 const emptyControl=():Control=>({view:blank(),active:null,bundle:null})
 function seal(tx:Tx,path:string,session:Session){
   if(session.open)tx.put(path+'/minutes/'+session.open.minute,session.open,true)
@@ -59,11 +64,11 @@ export async function ingest(store:Store,b:Batch,now=Date.now()){
     // Every write below shares this transaction, including history and the projection outbox.
     if(last.seq>s.seq){
       if(b.dropped_total<s.drops)throw new Failure(409,'Overflow counter regressed')
-      const {specs,versions}=control.bundle??=await load(tx)
+      const {specs,versions,anchor}=control.bundle??=await load(tx)
       const accepted:Result[]=[]
       for(const r of b.records){
         if(r.seq<=s.seq)continue
-        latest=process(s,r,b,versions,specs)
+        latest=process(s,r,b,versions,specs,anchor)
         const minute=Math.floor(s.time/60000)
         if(session.open?.minute!==minute){
           seal(tx,path,session)
@@ -96,21 +101,14 @@ export async function ingest(store:Store,b:Batch,now=Date.now()){
           view.buffer[String(result.sample.seq)]={t:result.capture_ms,ppm:result.sample.scd40.control_fresh?result.sample.scd40.co2_ppm:null,fan:result.sample.fan_on}
         }
         for(const [key,v] of Object.entries(view.buffer))if(s.time-v.t>300000)delete view.buffer[key]
-        if(view.calibration){
-          const id=view.calibration, meta=await tx.read<{sensor:Sensor,started:number}>('calibrations/'+id)
-          if(!meta)throw new Failure(503,'Calibration metadata unavailable')
-          const groups=new Map<number,Record<string,object>>()
-          for(const row of accepted){
-            if(row.capture_ms+s.offset<meta.started)continue
-            const minute=Math.floor(row.capture_ms/60000)
-            if(!groups.has(minute))groups.set(minute,{})
-            groups.get(minute)![String(row.sample.seq)]={values:calibrationRow(meta.sensor,id,row),
-              scd_valid:row.sample.scd40.valid,mq_valid:row.sample.mq135.valid,sharp_valid:row.sample.sharp.valid}
-          }
-          for(const [minute,rows] of groups)tx.put('calibrations/'+id+'/minutes/'+b.boot_id+'_'+minute,{boot:b.boot_id,minute,rows},true)
-        }
         view.reason=decision(view.command,latest,now,true).reason
         view.revision++
+      }
+      let activated=false
+      if(view.calibration && !session.retired){
+        activated=await collect(tx,control,b.boot_id,accepted,fresh, s.offset,now,specs,versions,anchor??b.legacy_mq_reference)
+        if(activated){s.version='';view.latest=null;view.buffer={};view.reason='model_changed'}
+        if(view.boot!==b.boot_id)storeControl(tx,control)
       }
       session.seenAt=now
       if(view.boot===b.boot_id){
@@ -121,7 +119,7 @@ export async function ingest(store:Store,b:Batch,now=Date.now()){
         tx.put(path,session)
       }
       const deadline=now+15000-elapsed(last.uptime_ms,last.scd40.at_ms)-Math.max(0,offset-s.offset)
-      return {view,eligible:!!prior && fresh && latest!==null,deadline}
+      return {view,eligible:!activated && !!prior && fresh && latest!==null,deadline}
     }
     return {view,eligible:false,deadline:0}
   })
@@ -146,7 +144,17 @@ export async function ownerChange(store:Store, action:string,input:Record<string
         return {view,result:prior.result}
       }
     }
-    if(action==='status')return {view,result:{session:view.calibration,status:view.calibration?'collecting':'idle'}}
+    if(action==='status'){
+      const session=view.calibration??control.lastCalibration
+      if(!session)return {view,result:{session:null,status:'idle'}}
+      const meta=await tx.read<{run?:Run,status:string} >('calibrations/'+session)
+      if(!meta?.run)return {view,result:{session,status:meta?.status??'unavailable'}}
+      const run=meta.run
+      if(view.calibration && now-run.lastReceipt>15000){
+        reject(run,'Connection interrupted or no telemetry received');save(tx,control,run,now);storeControl(tx,control)
+      }
+      return {view,result:summary(run)}
+    }
     if(action==='command'){
       check(typeof input.mode==='string'&&['auto','off','freshen'].includes(input.mode),'Invalid mode')
       const mode=input.mode as Mode
@@ -155,19 +163,25 @@ export async function ownerChange(store:Store, action:string,input:Record<string
     }else if(action==='start'){
       if(view.calibration)throw new Failure(409,'Calibration already open')
       check(typeof input.sensor==='string'&&['mq135','sharp','occupancy'].includes(input.sensor),'Invalid sensor')
-      view.calibration=id;result={session:id,status:'collecting'}
-      tx.put('calibrations/'+id,{sensor:input.sensor,columns:columns[input.sensor as Sensor].split(','),status:'collecting',started:now})
+      const sensor=input.sensor as Sensor
+      const bundle=control.bundle??=await load(tx)
+      const source=bundle.versions.split(';').find(v=>v.startsWith(sensor+'='))!.slice(sensor.length+1)
+      const run=newRun(id,sensor,now,view.boot,source,input.conditions_confirmed===true)
+      view.calibration=id;save(tx,control,run,now);result=summary(run)
     }else if(action==='abort'){
       check(view.calibration && input.session===view.calibration,'Session mismatch')
-      tx.put('calibrations/'+view.calibration,{status:'aborted',ended:now},true)
+      const meta=await tx.read<{run?:Run}>('calibrations/'+view.calibration)
+      if(meta?.run){meta.run.stage='aborted';meta.run.reason='Owner aborted session';save(tx,control,meta.run,now)}
+      else tx.put('calibrations/'+view.calibration,{status:'aborted',ended:now},true)
       view.calibration=null;result={status:'aborted'}
     }else if(action==='rollback'){
       check(modelNames.some(m=>m===input.model)&&typeof input.version==='string'&&/^[\w-]{1,64}$/.test(input.version),'Invalid version')
       const path='models/'+input.model
       const v=await tx.read<Version>(path+'/versions/'+input.version)
-      if(!v?.approved||!isDeepStrictEqual(v.spec,approved[input.model as keyof Specs]))throw new Failure(404,'Approved version unavailable')
+      if(!allowed(input.model as keyof Specs,v,input.version))throw new Failure(404,'Approved version unavailable')
       tx.put(path,{active:input.version});result={active:input.version}
       control.bundle=null
+      if(control.active)control.active.state.version=''
       view.latest=null;view.buffer={};view.reason='model_changed'
     }else throw new Failure(404,'Unknown action')
     if(action==='command')view.reason=decision(view.command,view.latest,now,now-view.observed<=15000).reason

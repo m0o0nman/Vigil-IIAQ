@@ -6,7 +6,7 @@ export const columns={
   occupancy:'pc_timestamp_local,session_id,device_sequence,device_uptime_ms,phase,stage_id,ground_truth_people,training_eligible,stage_elapsed_s,room_length_ft,room_width_ft,room_height_ft,room_volume_m3,scd40_co2_ppm,scd40_temp_c,scd40_rh_pct,mq135_adc_raw,mq135_gpio34_v,mq135_ao_v,mq135_rs_kohm,mq135_valid,empty_baseline_co2_ppm,co2_delta_from_baseline_ppm,co2_rate_ppm_per_hour'
 }
 export type Sensor=keyof typeof columns
-export function calibrationRow(sensor:Sensor,id:string,result:Result){
+export function calibrationRow(sensor:Sensor,id:string,result:Result,offset?:number,started?:number){
   const {sample:s}=result,m=s.mq_at_scd,c=s.scd40,d=s.sharp
   const row:Record<string,string|number|boolean|null>=Object.fromEntries(columns[sensor].split(',').map(k=>[k,null]))
   if(sensor==='sharp')Object.assign(row,{time_ms:d.at_ms,samples:100,on_sensor_mv:d.on_mv,
@@ -16,5 +16,12 @@ export function calibrationRow(sensor:Sensor,id:string,result:Result){
   if(sensor==='occupancy')Object.assign(row,{session_id:id,device_sequence:s.seq,device_uptime_ms:s.uptime_ms,
     training_eligible:0,scd40_co2_ppm:c.co2_ppm,scd40_temp_c:c.temperature_c,scd40_rh_pct:c.rh_pct,
     mq135_adc_raw:m.adc_raw,mq135_gpio34_v:m.gpio_v,mq135_ao_v:m.ao_v,mq135_rs_kohm:m.rs_kohm,mq135_valid:m.valid})
+  if(offset!==undefined && started!==undefined){
+    const estimated=result.capture_ms+offset
+    const time=new Date(estimated).toISOString()
+    if(sensor==='sharp'){row.timestamp_iso=time;row.elapsed_s=(estimated-started)/1000}
+    if(sensor==='mq135')row.PC_Time=time
+    if(sensor==='occupancy')row.pc_timestamp_local=time
+  }
   return row
 }

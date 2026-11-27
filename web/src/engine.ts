@@ -1,4 +1,4 @@
-import {approved, dustState,dustStep,gasState,gasStep,occupancyStep,predict, type Point,type Specs} from './models'
+import {approved, dustState,dustStep,gasState,gasStep,occupancyStep,predict, type Point,type Specs,type Anchor} from './models'
 import {elapsed,Failure,type Batch,type Sample} from './protocol'
 export type Mode='auto'|'off'|'freshen'
 export type Command={mode:Mode,expires:number}
@@ -51,7 +51,7 @@ function ventilation(s:State,t:number,ppm:number,rate:number|null,linear:number|
     }
   }
 }
-export function process(s:State,r:Sample,b:Batch,versions:string,spec:Specs=approved){
+export function process(s:State,r:Sample,b:Batch,versions:string,spec:Specs=approved,calibrated?:Anchor|null){
   if(r.seq<=s.seq)throw new Failure(409,'Sequence already processed')
   const advance=s.seq?elapsed(r.uptime_ms,s.raw):r.uptime_ms
   if(s.seq&&advance>=0x80000000)throw new Failure(409,'Capture clock regressed')
@@ -61,7 +61,8 @@ export function process(s:State,r:Sample,b:Batch,versions:string,spec:Specs=appr
     reset(s)
     if(s.version!==versions)s.totals=initial().totals
   }
-  const identity=JSON.stringify(b.legacy_mq_reference)
+  const effectiveAnchor=calibrated??b.legacy_mq_reference
+  const identity=JSON.stringify(effectiveAnchor)
   if(identity!==s.anchor){s.gas=gasState();s.gasOutput=null;s.anchor=identity}
   s.gaps+=gap;s.seq=r.seq;s.raw=r.uptime_ms;s.time+=advance;s.version=versions
   const c=r.scd40,d=r.sharp,m=r.mq_at_scd
@@ -78,7 +79,7 @@ export function process(s:State,r:Sample,b:Batch,versions:string,spec:Specs=appr
       const ppm=c.co2_ppm!
       match(s,t,ppm)
       s.lastScd=t;s.occOutput=occupancyStep(s.occ,t,ppm,spec.occupancy)
-      s.gasOutput=gasStep(s.gas,t,m.seq,elapsed(c.at_ms,m.at_ms),m.valid?m.rs_kohm:null,c.temperature_c!,c.rh_pct!,b.legacy_mq_reference,spec.mq135,c.at_ms)
+      s.gasOutput=gasStep(s.gas,t,m.seq,elapsed(c.at_ms,m.at_ms),m.valid?m.rs_kohm:null,c.temperature_c!,c.rh_pct!,effectiveAnchor,spec.mq135,c.at_ms)
       s.trend.push({t,y:ppm});s.trend=s.trend.slice(-61)
       s.forecast=predict(s.trend,s.occOutput,spec.forecast)
       s.pending.push({target:t+60000*spec.forecast.horizon_minutes,prediction:s.forecast})
