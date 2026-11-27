@@ -53,7 +53,7 @@ describe('route authorization and validation',()=>{
     expect((await ingestRoute(req('x'.repeat(40000),headers),db)).status).toBe(413)
   })
   it('rejects anonymous, invalid and nonowner tokens; accepts verified owner',async()=>{
-    const headers={authorization:'Bearer token'}
+    const headers={authorization:'Bearer token','idempotency-key':'case-1'}
     for(const [r,auth,status] of [
       [req({}),async()=>'fixture-owner',401],
       [req({},headers),async()=>{throw Error()},401],
@@ -140,4 +140,48 @@ describe('owner state',()=>{
     expect(Object.keys(db.docs).some(p=>p.startsWith('calibrations/'+start.session+'/minutes/'))).toBe(true)
     await ownerChange(db,'abort',{session:start.session},3000);expect(db.view!.calibration).toBeNull()
   })
+})
+it('does not renew a retried Freshen request after a mirror failure',async()=>{
+  db.failMirror=true
+  await expect(ownerChange(db,'command',{mode:'freshen'},1000,'same-key')).rejects.toThrow()
+  db.failMirror=false
+  const result=await ownerChange(db,'command',{mode:'freshen'},5010,'same-key')
+  expect(result).toEqual({mode:'freshen',expires:11000})
+  await expect(ownerChange(db,'command',{mode:'off'},5010,'same-key')).rejects.toThrow('already used')
+})
+it('requires distinct fresh SCD readings; stale or replay batches cannot drive fan',async()=>{
+  const first=batch(1,5000);first.records[0].scd40.co2_ppm=1050;await ingest(db,first,5000)
+  const next=batch(2,6000);next.records[0].scd40=first.records[0].scd40
+  next.records[0].mq_at_scd=first.records[0].mq_at_scd
+  expect((await ingest(db,parseBatch(next),6000)).fan_cmd).toBe('on')
+  expect(db.view!.latest!.occupancy!.mean).toBe(1050)
+  const stale=batch(3,21000);stale.records[0].scd40={...first.records[0].scd40,control_fresh:false}
+  stale.records[0].mq_at_scd=first.records[0].mq_at_scd
+  expect((await ingest(db,parseBatch(stale),21000)).fan_cmd).toBe('off')
+  expect(db.view!.latest!.forecast).toBeNull()
+  const delayed=batch(4,22000);delayed.records[0].scd40.co2_ppm=1100
+  expect((await ingest(db,delayed,99000)).fan_cmd).toBe('off')
+  expect(db.view!.latest!.sample.seq).toBe(3)
+})
+it('sizes an actual minute and five-minute view at nominal ESP32 cadence',async()=>{
+  const bytes=(x:unknown)=>Buffer.byteLength(JSON.stringify(x))
+  let peak=0,fullMinute=0,wire=0,readBytes=0
+  // One aggregate per second, one new SCD reading per five, five records/upload.
+  for(let block=0;block<254;block++){
+    const start=block*5+1,b=batch(start)
+    b.records=[]
+    for(let seq=start;seq<start+5;seq++){
+      const r=batch(seq).records[0]
+      r.scd40.at_ms=start*1000;r.mq_at_scd.at_ms=start*1000;r.mq_at_scd.seq=start
+      b.records.push(r)
+    }
+    if(block>=194)readBytes+=bytes(db.docs['system/projection'])
+    wire=bytes(b);await ingest(db,parseBatch(b),(start+4)*1000)
+    peak=Math.max(peak,bytes(db.docs['system/projection']))
+  }
+  const minutes=Object.entries(db.docs).filter(([k])=>k.includes('/minutes/'))
+  expect(minutes).toHaveLength(21)
+  for(const [,doc] of minutes)fullMinute=Math.max(fullMinute,bytes(doc))
+  expect(Object.keys(db.view!.buffer)).toHaveLength(301)
+  console.log('Synthetic JSON bytes', {batch:wire,minute:fullMinute,peakControl:peak,meanControlRead:Math.round(readBytes/60),projection:bytes(db.view)})
 })

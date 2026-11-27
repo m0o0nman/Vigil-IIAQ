@@ -2,7 +2,7 @@ import {createHash,timingSafeEqual} from 'node:crypto'
 import {firebaseStore,verify,history,calibrationCsv} from './firebase'
 import {telemetryColumns,telemetryCells,csvLine} from './export'
 import {ingest,ownerChange} from './service'
-import {check,Failure,parseBatch} from './protocol'
+import {check,Failure,object,parseBatch} from './protocol'
 import type {Store} from './store'
 const headers={'Cache-Control':'no-store'}
 export function json(data:unknown,status=200){
@@ -41,7 +41,12 @@ export async function ownerRoute(r:Request,action:string,store:Store=firebaseSto
     await owner(r,auth)
     const data=action==='status'?{}:await body(r)
     check(data && typeof data==='object' && !Array.isArray(data),'Expected object')
-    return json(await ownerChange(store,action,data))
+    const keys:Record<string,string>={command:'mode',start:'sensor',abort:'session',rollback:'model version'}
+    const key=r.headers.get('idempotency-key')??''
+    if(action!=='status'){
+      object(data,keys[action]);check(/^[a-zA-Z0-9_-]{1,128}$/.test(key),'Idempotency-Key required')
+    }
+    return json(await ownerChange(store,action,data,Date.now(),key))
   }catch(e){return failed(e)}
 }
 export async function exportRoute(r:Request,session:string){

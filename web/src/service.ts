@@ -1,6 +1,6 @@
 import {isDeepStrictEqual} from 'node:util'
 import {calibrationRow,columns,type Sensor} from './calibration'
-import {randomUUID} from 'node:crypto'
+import {createHash,randomUUID} from 'node:crypto'
 import {approved,type Specs} from './models'
 import {decision,initial,metrics,process,type Result,type State,type Mode} from './engine'
 import {check,elapsed,Failure,type Batch} from './protocol'
@@ -40,6 +40,10 @@ export async function ingest(store:Store,b:Batch,now=Date.now()){
   const committed=await store.atomic(async tx=>{
     const control=await tx.read<Control>(viewPath)??emptyControl()
     const view=control.view
+    if(view.command.mode==='freshen' && view.command.expires<=now){
+      view.command={mode:'off',expires:0};view.reason='freshen_expired';view.revision++
+      storeControl(tx,control)
+    }
     const path='sessions/'+b.boot_id
     const prior=view.boot===b.boot_id?control.active:await tx.read<Session>(path)
     const session=prior??{state:initial(),retired:false,seenAt:now,open:null}
@@ -116,23 +120,32 @@ export async function ingest(store:Store,b:Batch,now=Date.now()){
         if(session.retired)seal(tx,path,session)
         tx.put(path,session)
       }
-      const eligible=!!prior && fresh && latest!==null && elapsed(last.uptime_ms,last.scd40.at_ms)+Math.max(0,offset-s.offset)<=15000
-      return {view,eligible}
+      const deadline=now+15000-elapsed(last.uptime_ms,last.scd40.at_ms)-Math.max(0,offset-s.offset)
+      return {view,eligible:!!prior && fresh && latest!==null,deadline}
     }
-    return {view,eligible:false}
+    return {view,eligible:false,deadline:0}
   })
   const revision=await store.publish(committed.view)
   const delay=Math.max(0,Date.now()-started)
   const {mode,fan_cmd,fan_seconds}=decision(committed.view.command,committed.view.latest,
-    now+delay,committed.eligible && revision===committed.view.revision && delay+elapsed(b.records.at(-1)!.uptime_ms,b.records.at(-1)!.scd40.at_ms)<=15000)
+    now+delay,committed.eligible && revision===committed.view.revision && now+delay<=committed.deadline)
   return {boot_id:b.boot_id,ack_seq:b.records.at(-1)!.seq,mode,fan_cmd,fan_seconds}
 }
-export async function ownerChange(store:Store, action:string,input:Record<string,unknown>,now=Date.now()){
+export async function ownerChange(store:Store, action:string,input:Record<string,unknown>,now=Date.now(),key:string=randomUUID()){
   const id=randomUUID()
   const {view,result}=await store.atomic(async tx=>{
     const control=await tx.read<Control>(viewPath)??emptyControl()
     const view=control.view
     let result:object={}
+    const op='ownerOperations/'+createHash('sha256').update(key).digest('hex')
+    const fingerprint=JSON.stringify([action,Object.keys(input).sort().map(k=>[k,input[k]])])
+    if(action!=='status'){
+      const prior=await tx.read<{fingerprint:string,result:object}>(op)
+      if(prior){
+        if(prior.fingerprint!==fingerprint)throw new Failure(409,'Idempotency key already used')
+        return {view,result:prior.result}
+      }
+    }
     if(action==='status')return {view,result:{session:view.calibration,status:view.calibration?'collecting':'idle'}}
     if(action==='command'){
       check(typeof input.mode==='string'&&['auto','off','freshen'].includes(input.mode),'Invalid mode')
@@ -158,6 +171,7 @@ export async function ownerChange(store:Store, action:string,input:Record<string
       view.latest=null;view.buffer={};view.reason='model_changed'
     }else throw new Failure(404,'Unknown action')
     if(action==='command')view.reason=decision(view.command,view.latest,now,now-view.observed<=15000).reason
+    tx.put(op,{fingerprint,result,created:now})
     view.revision++;storeControl(tx,control)
     return {view,result}
   })
