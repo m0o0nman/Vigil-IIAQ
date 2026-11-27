@@ -39,7 +39,8 @@ export async function ingestRoute(r:Request,store:Store=firebaseStore){
 export async function ownerRoute(r:Request,action:string,store:Store=firebaseStore,auth=verify){
   try{
     await owner(r,auth)
-    const data=action==='status'?{}:await body(r)
+    const selected=new URL(r.url).searchParams.get('session')
+    const data=action==='status'?(selected?{session:selected}:{}):await body(r)
     check(data && typeof data==='object' && !Array.isArray(data),'Expected object')
     const keys:Record<string,string>={command:'mode',start:'sensor',abort:'session',rollback:'model version'}
     const key=r.headers.get('idempotency-key')??''

@@ -11,7 +11,7 @@ export function summary(run:Run){
     observations:run.observations,window_count:run.count,distinct_scd:run.co2.length,
     window_elapsed_ms:run.windowStart===null?0:run.last!-run.windowStart,window_required_ms:60000,
     started:run.started,ended:run.ended,room_confirmed:run.confirmed,gates:run.gates,
-    warnings:run.warnings,candidate:run.candidate,active_version_at_completion:run.stage==='passed'?run.id:null}
+    comparison:run.comparison,warnings:run.warnings,candidate:run.candidate,active_version_at_completion:run.stage==='passed'?run.id:null}
 }
 export function save(tx:Tx,control:Control,run:Run,now:number){
   if(['passed','failed','aborted'].includes(run.stage)){

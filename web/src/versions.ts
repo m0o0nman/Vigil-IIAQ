@@ -5,7 +5,7 @@ export type Version={approved:boolean,spec:Specs[keyof Specs],calibration?:Retur
 function buildMetadata(run:Run,now:number){
   return {version:run.id,session:run.id,model:run.sensor,source:run.source,
     device:'single provisioned ESP32',boot:run.boot,first_ms:run.first,window_ms:run.windowStart,last_ms:run.last,
-    parameters:run.candidate!,warnings:run.warnings,gates:run.gates,observations:run.observations,window_count:run.count,
+    parameters:run.candidate!,comparison:run.comparison,warnings:run.warnings,gates:run.gates,observations:run.observations,window_count:run.count,
     distinct_scd:run.co2.length,created:now,room_confirmed:run.confirmed,
     provenance:'Device capture; PROVISIONAL gates derived from immutable CSVs. See docs/phase4_calibration.md.',
     limitation:{occupancy:'Occupancy remains approximate after environmental baseline recalibration.',

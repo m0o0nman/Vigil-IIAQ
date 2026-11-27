@@ -145,12 +145,15 @@ export async function ownerChange(store:Store, action:string,input:Record<string
       }
     }
     if(action==='status'){
-      const session=view.calibration??control.lastCalibration
+      if(input.session!==undefined)check(typeof input.session==='string' && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(input.session),'Invalid session')
+      const session=input.session as string|undefined ?? view.calibration??control.lastCalibration
       if(!session)return {view,result:{session:null,status:'idle'}}
       const meta=await tx.read<{run?:Run,status:string} >('calibrations/'+session)
-      if(!meta?.run)return {view,result:{session,status:meta?.status??'unavailable'}}
+      if(!meta)throw new Failure(404,'Unknown session')
+      if(!meta.run)return {view,result:{session,status:meta.status}}
+
       const run=meta.run
-      if(view.calibration && now-run.lastReceipt>15000){
+      if(view.calibration===session && now-run.lastReceipt>15000){
         reject(run,'Connection interrupted or no telemetry received');save(tx,control,run,now);storeControl(tx,control)
       }
       return {view,result:summary(run)}
