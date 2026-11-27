@@ -1,0 +1,8 @@
+Typeface: Syne (Google Fonts)
+Licence: SIL Open Font License, Version 1.1 (OFL-1.1)
+Weights: 400–800 (variable)
+Google Fonts: https://fonts.google.com/specimen/Syne
+CSS endpoint: https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap
+
+Use Syne for the VIGIL wordmark, headings, interface and numeric values. Suggested weights: 400 body, 500 labels, 600 readings, 700 headings.
+Google Fonts CSS is provided instead of redistributing WOFF2 files. It requires internet access on first load; for offline deployments obtain Syne from the linked source or convert your existing TTF locally.
