@@ -30,5 +30,16 @@
   ],
   "pulses_per_aggregate": 100,
   "min_good": 95,
+  "status_order": [
+    "invalid/stale",
+    "filter warmup",
+    "persistent high",
+    "high pending",
+    "elevated",
+    "low",
+    "baseline"
+  ],
+  "filter": "median of valid ON aggregates; reset on invalid or gap above reset_gap_ms",
+  "high": "ready and median >= high_mv continuously for persistent_high_ms",
   "validity": "zero missed periods, finite ON >= low_mv/2; good ON excludes ADC rails"
 }

@@ -54,6 +54,18 @@
     "h0"
   ],
   "anchor_validation": "F98-109, valid and matching model_sig",
+  "supply_v": 5.0,
+  "load_kohm": 1.0,
+  "divider": 2.0,
+  "adc_pairs": 20,
+  "adc_high_range_at": 3900,
+  "valid_raw_exclusive": [
+    2,
+    4090
+  ],
+  "resistance": "load_kohm*(supply_v/ao_v-1); require 0 < ao_v < supply_v",
+  "inference": "once per new valid SCD40 reading; reject reused ADC sequence",
+  "resets": "warm-up, unaccepted baseline, stale/invalid ADC, climate outside coverage, inference gap, nonfinite score",
   "response": "ln(r0/rs)-x0",
   "predicted": "poly(T,RH)-poly(t0,h0)",
   "score": "(response-predicted-residual_median)/residual_scale",
