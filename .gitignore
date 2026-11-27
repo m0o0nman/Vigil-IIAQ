@@ -7,3 +7,4 @@ __pycache__/
 *serviceAccount*.json
 .vercel/
 firmware/build/
+firmware/VigilV2/site_config.h

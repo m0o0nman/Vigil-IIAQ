@@ -21,7 +21,7 @@ static uint32_t lastPoll=0;
 
 static void capture(const DustReading& dust) {
   portENTER_CRITICAL(&dataMux);
-  backlog.append({++sequence,dust,mqShared,climate,fan});
+  backlog.append({++sequence,millis(),dust,mqShared,climate,fan});
   portEXIT_CRITICAL(&dataMux);
 }
 
