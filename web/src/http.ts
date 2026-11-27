@@ -1,5 +1,6 @@
 import {createHash,timingSafeEqual} from 'node:crypto'
-import {firebaseStore,verify,history} from './firebase'
+import {firebaseStore,verify,history,calibrationCsv} from './firebase'
+import {telemetryColumns,telemetryCells,csvLine} from './export'
 import {ingest,ownerChange} from './service'
 import {check,Failure,parseBatch} from './protocol'
 import type {Store} from './store'
@@ -45,18 +46,24 @@ export async function ownerRoute(r:Request,action:string,store:Store=firebaseSto
 }
 export async function exportRoute(r:Request,session:string){
   try{
-    await owner(r);check(/^[0-9a-f]{32}$/.test(session),'Invalid session')
-    const iterator=history(session)
-    let next=await iterator.next()
-    const columns=['seq','uptime_ms','co2_ppm','temperature_c','rh_pct','mq_rs_kohm','dust_on_mv','dust_valid','fan_on','local_override']
+    await owner(r)
+    const boot=/^[0-9a-f]{32}$/.test(session)
+    check(boot||/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(session),'Invalid session')
+    async function* telemetry(){
+      const data=history(session)
+      try{
+        const first=await data.next()
+        yield telemetryColumns
+        if(!first.done)yield telemetryCells(first.value)
+        for await(const row of data)yield telemetryCells(row)
+      }finally{await data.return(undefined)}
+    }
+    const iterator=boot?telemetry():calibrationCsv(session)
+    const first=await iterator.next()
     const stream=new ReadableStream({
-      start(c){c.enqueue(Buffer.from(columns.join(',')+'\n'))},
-      async pull(c){
-        if(next.done){c.close();return}
-        const s=next.value.sample
-        c.enqueue(Buffer.from([s.seq,s.uptime_ms,s.scd40.co2_ppm,s.scd40.temperature_c,s.scd40.rh_pct,s.mq135.rs_kohm,s.sharp.on_mv,s.sharp.valid,s.fan_on,s.local_override].join(',')+'\n'))
-        next=await iterator.next()
-      },async cancel(){await iterator.return(undefined)}
+      start(c){if(!first.done)c.enqueue(Buffer.from(csvLine(first.value)))},
+      async pull(c){const next=await iterator.next();if(next.done)c.close();else c.enqueue(Buffer.from(csvLine(next.value)))},
+      async cancel(){await iterator.return(undefined)}
     })
     return new Response(stream,{headers:{...headers,'Content-Type':'text/csv','Content-Disposition':`attachment; filename="telemetry-${session}.csv"`}})
   }catch(e){return failed(e)}

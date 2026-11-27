@@ -7,7 +7,7 @@ type Prediction=ReturnType<typeof predict>
 const names=['robust','linear','persistence'] as const
 export const initial=()=>({
   seq:0,raw:0,time:0,drops:0,gaps:0,offset:null as number|null,
-  version:'',anchor:'',occ:[] as Point[],gas:gasState(),dust:dustState(),trend:[] as Point[],
+  version:'',anchor:'',lastMq:0,lastPairedMq:0,occ:[] as Point[],gas:gasState(),dust:dustState(),trend:[] as Point[],
   lastScd:null as number|null,occOutput:null as ReturnType<typeof occupancyStep>|null,
   gasOutput:null as ReturnType<typeof gasStep>|null,forecast:null as Prediction|null,
   pending:[] as {target:number,prediction:Prediction}[], missed:0,
@@ -29,7 +29,8 @@ export function metrics(s:State){
 export function match(s:State,t:number,y:number){
   for(const p of s.pending){
     if(p.target<t){s.missed++;continue}
-    if(p.target!==t)continue
+    // Compare all three methods on the same origin/target pairs.
+    if(p.target!==t || names.some(k=>p.prediction[k]===null))continue
     for(const k of names){
       const v=p.prediction[k]
       if(v===null)continue
@@ -64,6 +65,10 @@ export function process(s:State,r:Sample,b:Batch,versions:string,spec:Specs=appr
   if(identity!==s.anchor){s.gas=gasState();s.gasOutput=null;s.anchor=identity}
   s.gaps+=gap;s.seq=r.seq;s.raw=r.uptime_ms;s.time+=advance;s.version=versions
   const c=r.scd40,d=r.sharp,m=r.mq_at_scd
+  for(const [key,seq] of [['lastMq',r.mq135.seq],['lastPairedMq',m.seq]] as const){
+    if(s[key] && elapsed(seq,s[key])>=0x80000000)throw new Failure(409,'MQ sequence regressed')
+    s[key]=seq
+  }
   const dust=dustStep(s.dust,s.time-elapsed(r.uptime_ms,d.at_ms),d.on_mv,d.valid,spec.sharp)
   if(c.control_fresh){
     const t=s.time-elapsed(r.uptime_ms,c.at_ms)
@@ -83,7 +88,10 @@ export function process(s:State,r:Sample,b:Batch,versions:string,spec:Specs=appr
     s.forecast=null;s.fan=initial().fan
     if(!c.valid){s.occ=[];s.gas=gasState();s.occOutput=null;s.gasOutput=null;s.trend=[]}
   }
-  return {sample:r,capture_ms:s.time,dust,occupancy:s.occOutput,gas:s.gasOutput,forecast:s.forecast,versions,
+  const gasReady=c.control_fresh && r.mq135.fresh && s.gas.votes.length===spec.mq135.window && s.time-s.gas.last<=spec.mq135.gap_ms
+  return {sample:r,capture_ms:s.time,dust,occupancy:s.occOutput,gas:s.gasOutput,gas_ready:gasReady,
+    occupancy_ready:c.control_fresh && s.occOutput?.estimate!=null,
+    legacy_mq_reference:b.legacy_mq_reference,forecast:s.forecast,versions,
     gap,requested_auto_on:s.fan.on,auto_reason:!c.control_fresh?'stale_co2':!s.fan.on?'monitoring':
       c.co2_ppm!>=1000?'co2_threshold':s.fan.votes>=3?'preventive':s.fan.recovery!==null?'recovery':'hold'}
 }

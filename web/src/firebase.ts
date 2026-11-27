@@ -39,14 +39,39 @@ export const firebaseStore:Store={
 }
 export async function* history(session:string){
   const db=getFirestore(app()),ref=db.collection('sessions').doc(session)
-  if(!(await ref.get()).exists)throw new Failure(404,'Unknown session')
+  // Snapshot the inclusive export boundary before paging immutable history.
+  const {open,last}=await db.runTransaction(async tx=>{
+    const control=(await tx.get(db.doc('system/projection'))).data() as import('./service').Control|undefined
+    const state=control?.view.boot===session?control.active:(await tx.get(ref)).data() as import('./service').Session|undefined
+    if(!state)throw new Failure(404,'Unknown session')
+    return {open:state.open,last:state.state.seq}
+  })
   const query=ref.collection('minutes').orderBy('minute').limit(16)
   let page=await query.get()
   while(!page.empty){
     for(const doc of page.docs){
       const data=doc.data()
       const rows=Object.values(data.rows??{}) as import('./engine').Result[]
-      for(const row of rows.sort((a,b)=>a.sample.seq-b.sample.seq))yield row
+      for(const row of rows.sort((a,b)=>a.sample.seq-b.sample.seq))if(row.sample.seq<=last && (!open || data.minute<open.minute))yield row
+    }
+    if(open && page.docs.at(-1)!.get("minute")>=open.minute)break
+    page=await query.startAfter(page.docs.at(-1)!).get()
+  }
+  if(open)for(const row of Object.values(open.rows).sort((a,b)=>a.sample.seq-b.sample.seq))yield row
+}
+
+export async function* calibrationCsv(session:string){
+  const ref=getFirestore(app()).collection('calibrations').doc(session)
+  const meta=(await ref.get()).data()
+  if(!meta)throw new Failure(404,'Unknown calibration')
+  const names=meta.columns as string[]
+  yield names
+  const query=ref.collection('minutes').orderBy('minute').limit(16)
+  let page=await query.get()
+  while(!page.empty){
+    for(const doc of page.docs){
+      const rows=doc.get('rows') as Record<string,{values:Record<string,unknown>}>
+      for(const key of Object.keys(rows).sort((a,b)=>Number(a)-Number(b)))yield names.map(k=>rows[key].values[k])
     }
     page=await query.startAfter(page.docs.at(-1)!).get()
   }
