@@ -1,4 +1,5 @@
 #include "device.h"
+#include "reply.h"
 #include <ArduinoJson.h>
 #include <DNSServer.h>
 #include <HTTPClient.h>
@@ -19,11 +20,14 @@ static const char* ROOT_CA="";
 
 struct Settings {char ssid[33], password[65], secret[129];};
 static Settings settings{};
-static char bootId[33];
+static bool savedAnchor=false;
+static uint32_t modelSignature=0;
+static float anchorR0=NAN,anchorX0=NAN,anchorT0=NAN,anchorH0=NAN;
+static char bootId[33], setupNonce[33];
 static WebServer portal(80);
 static DNSServer dns;
 static bool serving=false, credentialsChanged=false;
-static const unsigned batchSize=5;
+static const unsigned batchSize=10;
 static Record batch[batchSize];
 
 static bool transfer(char* dest,size_t capacity,const String& value) {
@@ -35,16 +39,18 @@ static bool transfer(char* dest,size_t capacity,const String& value) {
 }
 
 static void portalForm() {
+  if (portal.client().localIP()!=WiFi.softAPIP()) { portal.send(403,"text/plain","Forbidden"); return; }
   portal.sendHeader("Cache-Control","no-store");
-  portal.send(200,"text/html","<form method='post' action='/save'>Wi-Fi SSID <input name='ssid' required>"
+  portal.send(200,"text/html",String("<form method='post' action='/save'>Wi-Fi SSID <input name='ssid' required>"
     " Wi-Fi password <input type='password' name='password'> Device secret <input type='password' name='secret' required>"
-    "<button>Save</button></form>");
+    "<input type=hidden name=nonce value=")+setupNonce+"><button>Save</button></form>");
 }
 
 static void configurePortal() {
   portal.on("/",HTTP_GET,portalForm);
   portal.onNotFound(portalForm);
   portal.on("/save",HTTP_POST,[](){
+    if (portal.client().localIP()!=WiFi.softAPIP() || portal.arg("nonce")!=setupNonce) { portal.send(403,"text/plain","Forbidden"); return; }
     Settings next{};
     if (!transfer(next.ssid,sizeof(next.ssid),portal.arg("ssid")) || !next.ssid[0] ||
         !transfer(next.password,sizeof(next.password),portal.arg("password")) ||
@@ -69,7 +75,7 @@ static void randomHex(char* dest,size_t bytes) {
 
 static void startPortal() {
   char password[25];
-  randomHex(password,12);
+  randomHex(password,12); randomHex(setupNonce,16);
   WiFi.mode(WIFI_AP_STA);
   if (!WiFi.softAP("VIGIL-Setup",password)) return;
   Serial.printf("Temporary setup AP VIGIL-Setup password %s\n",password);
@@ -90,6 +96,13 @@ static void number(JsonObject obj,const char* key,float value) {
   else obj[key]=nullptr;
 }
 
+static void encodeMQ(JsonObject mq,const MQReading& m,uint32_t reference) {
+  mq["seq"]=m.seq; mq["at_ms"]=m.at; mq["valid"]=m.seq && m.valid;
+  mq["fresh"]=m.seq && m.valid && reference-m.at<=1500;
+  number(mq,"adc_raw",m.seq?m.raw:NAN); number(mq,"gpio_v",m.seq?m.pinV:NAN);
+  number(mq,"ao_v",m.seq?m.aoV:NAN); number(mq,"rs_kohm",m.seq?m.rs:NAN);
+}
+
 static void encode(JsonObject o,const Record& r) {
   const auto& d=r.dust;
   const auto& m=r.mq;
@@ -98,13 +111,11 @@ static void encode(JsonObject o,const Record& r) {
   JsonObject dust=o["sharp"].to<JsonObject>();
   dust["seq"]=d.seq; dust["at_ms"]=d.at; dust["valid"]=d.valid;
   number(dust,"on_mv",d.on); number(dust,"off_mv",d.off); number(dust,"delta_mv",d.delta);
+  dust["fresh"]=d.valid && r.at-d.at<=2500;
   dust["max_pulse_us"]=d.maxPulse; dust["min_pulse_us"]=d.minPulse;
   dust["rejected"]=d.rejected; dust["missed"]=d.missed;
-  JsonObject mq=o["mq135"].to<JsonObject>();
-  mq["seq"]=m.seq; mq["at_ms"]=m.at; mq["valid"]=m.seq && m.valid;
-  mq["fresh"]=m.seq && m.valid && r.at-m.at<=1500;
-  number(mq,"adc_raw",m.seq?m.raw:NAN); number(mq,"gpio_v",m.seq?m.pinV:NAN);
-  number(mq,"ao_v",m.seq?m.aoV:NAN); number(mq,"rs_kohm",m.seq?m.rs:NAN);
+  encodeMQ(o["mq135"].to<JsonObject>(),m,r.at);
+  encodeMQ(o["mq_at_scd"].to<JsonObject>(),r.mqAtScd,c.at);
   JsonObject scd=o["scd40"].to<JsonObject>();
   scd["at_ms"]=c.at; scd["valid"]=c.valid && r.at-c.at<=30000; scd["control_fresh"]=c.valid && r.at-c.at<=15000;
   scd["error"]=c.error;
@@ -117,13 +128,22 @@ static void encode(JsonObject o,const Record& r) {
 static bool upload() {
   portENTER_CRITICAL(&dataMux);
   unsigned count=backlog.copy(batch,batchSize);
+  bool tailAtCopy=count==backlog.size;
   uint32_t drops=backlog.dropped;
   portEXIT_CRITICAL(&dataMux);
   if (!count) return true;
   if (strncmp(INGEST_URL,"https://",8) || !ROOT_CA[0] || !settings.secret[0]) return false;
 
   JsonDocument payload;
+  bool eligible=tailAtCopy && millis()-batch[count-1].at<=5000;
+  payload["command_eligible"]=eligible;
   payload["boot_id"]=bootId; payload["dropped_total"]=drops;
+  if (savedAnchor) {
+    JsonObject a=payload["legacy_mq_reference"].to<JsonObject>();
+    a["model_sig"]=modelSignature;
+    number(a,"r0",anchorR0); number(a,"x0",anchorX0);
+    number(a,"t0",anchorT0); number(a,"h0",anchorH0);
+  } else payload["legacy_mq_reference"]=nullptr;
   JsonArray records=payload["records"].to<JsonArray>();
   for(unsigned i=0;i<count;++i) encode(records.add<JsonObject>(),batch[i]);
   String body;
@@ -143,22 +163,15 @@ static bool upload() {
   char response[513];
   if (http.getStream().readBytes(response,length)!=(size_t)length) return false;
   response[length]=0;
-  JsonDocument reply;
-  if (deserializeJson(reply,response) || !reply["boot_id"].is<const char*>() ||
-      strcmp(reply["boot_id"],bootId) || !reply["ack_seq"].is<uint64_t>()) return false;
-  uint64_t ack=reply["ack_seq"].as<uint64_t>();
-  if (ack!=batch[count-1].seq) return false;
-
   Lease next{};
-  bool usable=reply["fan_seconds"].is<uint32_t>() &&
-      decodeLease(reply["mode"].as<const char*>(),reply["fan_cmd"].as<const char*>(),
-                  reply["fan_seconds"].as<uint32_t>(),sent,next);
+  bool usable=false;
+  uint64_t ack=batch[count-1].seq;
+  if (!parseReply(response,length,bootId,ack,sent,next,usable)) return false;
   portENTER_CRITICAL(&dataMux);
   // A replay response may acknowledge storage but must never actuate the fan.
-  bool live=backlog.size && backlog.slots[(backlog.head+backlog.size-1)%120].seq==ack;
   backlog.ack(ack);
   portEXIT_CRITICAL(&dataMux);
-  if (live && millis()-batch[count-1].at<=15000 && usable && next.active(millis())) setLease(next);
+  if (eligible && millis()-batch[count-1].at<=15000 && usable && next.active(millis())) setLease(next);
   else setLease({});
   return true;
 }
@@ -167,6 +180,14 @@ void networkWorker(void*) {
   WiFi.persistent(false); WiFi.mode(WIFI_STA);
   randomHex(bootId,16);
   Preferences prefs;
+  // Read only: legacy NVS keys in inputs/code/VIGIL_Phase3_Fixed.ino:101-109.
+  if (prefs.begin("vigil_ml",true)) {
+    savedAnchor=prefs.getBool("valid",false);
+    modelSignature=prefs.getUInt("model_sig",0);
+    anchorR0=prefs.getFloat("r0",NAN); anchorX0=prefs.getFloat("x0",NAN);
+    anchorT0=prefs.getFloat("t0",NAN); anchorH0=prefs.getFloat("h0",NAN);
+    prefs.end();
+  }
   if (prefs.begin("vigil-net",true)) {
     if (prefs.getBytesLength("config")==sizeof(settings)) prefs.getBytes("config",&settings,sizeof(settings));
     prefs.end();
@@ -189,6 +210,7 @@ void networkWorker(void*) {
       if (now-lastUpload>=5000 && time(nullptr)>0) {
         // Drain backlogs faster than acquisition. Failures retry at normal cadence.
         bool ok=upload();
+        if (!ok) setLease({});
         portENTER_CRITICAL(&dataMux); bool behind=backlog.size>=batchSize; portEXIT_CRITICAL(&dataMux);
         lastUpload=millis()-(ok && behind?5000:0);
       }

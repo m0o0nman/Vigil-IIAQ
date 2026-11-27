@@ -12,6 +12,7 @@ portMUX_TYPE dataMux=portMUX_INITIALIZER_UNLOCKED;
 Ring<Record,120> backlog;
 static MQReading mqShared{};
 static Climate climate{};
+static MQReading mqAtScd{};
 static Lease lease{};
 static Safety safety{};
 static FanDecision fan{false,"stale_co2"};
@@ -21,7 +22,7 @@ static uint32_t lastPoll=0;
 
 static void capture(const DustReading& dust) {
   portENTER_CRITICAL(&dataMux);
-  backlog.append({++sequence,millis(),dust,mqShared,climate,fan});
+  backlog.append({++sequence,(uint32_t)millis(),dust,mqShared,climate,mqAtScd,fan});
   portEXIT_CRITICAL(&dataMux);
 }
 
@@ -98,6 +99,8 @@ void serviceSensors() {
   uint32_t now=millis();
   // Only this loop writes the climate and fan snapshot.
   Climate c=climate;
+  MQReading paired{};
+  bool accepted=false;
   if (c.valid && now-c.at>30000UL) c.valid=false;
   if (scdInit && now-lastPoll>=1000UL) {
     lastPoll=now;
@@ -107,12 +110,19 @@ void serviceSensors() {
       uint16_t ppm=0; float t=NAN,h=NAN;
       if (scd40.readMeasurement(ppm,t,h) || !ppm || !isfinite(t) || !isfinite(h) || h<0 || h>100)
         c.error="invalid_measurement";
-      else c={millis(),ppm,t,h,true,"ok"};
+      else {
+        portENTER_CRITICAL(&dataMux);
+        c={(uint32_t)millis(),ppm,t,h,true,"ok"};
+        paired=mqShared;
+        portEXIT_CRITICAL(&dataMux);
+        accepted=true;
+      }
     }
   }
   now=millis();
   portENTER_CRITICAL(&dataMux);
   if (!lease.active(now)) lease={};
+  if (accepted) mqAtScd=paired;
   climate=c; fan=safety.step(now,c.valid,c.at,c.ppm,lease);
   digitalWrite(FAN_PIN,fan.on?HIGH:LOW);
   portEXIT_CRITICAL(&dataMux);
