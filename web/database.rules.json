@@ -1,0 +1,1 @@
+{"rules":{".read":false,".write":false,"live":{".read":"auth != null && auth.uid === root.child('access/owner').val()"},"state":{".read":"auth != null && auth.uid === root.child('access/owner').val()"},"buffer":{".read":"auth != null && auth.uid === root.child('access/owner').val()"},"command":{".read":"auth != null && auth.uid === root.child('access/owner').val()"}}}

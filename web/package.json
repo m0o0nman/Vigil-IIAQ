@@ -1,0 +1,7 @@
+{
+  "name": "vigil-backend",
+  "private": true,
+  "scripts": {"dev":"next dev","build":"next build","test":"vitest run","typecheck":"tsc --noEmit"},
+  "dependencies":{"next":"^16.0.0","react":"^19.2.0","react-dom":"^19.2.0","firebase-admin":"^13.0.0"},
+  "devDependencies":{"typescript":"~5.9.3","vitest":"^4.0.0","@types/node":"^24","@types/react":"^19","@types/react-dom":"^19"}
+}
