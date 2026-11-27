@@ -3,6 +3,7 @@ import {firebaseStore,verify,history,calibrationCsv} from './firebase'
 import {telemetryColumns,telemetryCells,csvLine} from './export'
 import {ingest,ownerChange} from './service'
 import {check,Failure,object,parseBatch} from './protocol'
+import {readAnalytics,readCalibrations} from './readback'
 import type {Store} from './store'
 const headers={'Cache-Control':'no-store'}
 export function json(data:unknown,status=200){
@@ -39,7 +40,9 @@ export async function ingestRoute(r:Request,store:Store=firebaseStore){
 export async function ownerRoute(r:Request,action:string,store:Store=firebaseStore,auth=verify){
   try{
     await owner(r,auth)
-    const selected=new URL(r.url).searchParams.get('session')
+    const query=new URL(r.url).searchParams
+    if(action==='status' && query.get('view')==='history')return json(await readCalibrations())
+    const selected=query.get('session')
     const data=action==='status'?(selected?{session:selected}:{}):await body(r)
     check(data && typeof data==='object' && !Array.isArray(data),'Expected object')
     const keys:Record<string,string>={command:'mode',start:'sensor',abort:'session',rollback:'model version'}
@@ -57,6 +60,10 @@ export async function exportRoute(r:Request,session:string){
     await owner(r)
     const boot=/^[0-9a-f]{32}$/.test(session)
     check(boot||/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(session),'Invalid session')
+    if(new URL(r.url).searchParams.get('view')==='analytics'){
+      check(boot,'Device session required')
+      return json(await readAnalytics(session))
+    }
     async function* telemetry(){
       const data=history(session)
       try{
