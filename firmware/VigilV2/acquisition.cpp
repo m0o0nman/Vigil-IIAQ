@@ -85,6 +85,7 @@ void adcWorker(void*){
 bool beginSensors() {
   pinMode(FAN_PIN,OUTPUT); digitalWrite(FAN_PIN,LOW);
   pinMode(LED_PIN,OUTPUT); digitalWrite(LED_PIN,LOW);
+  delay(500); // Original boot settling delay, F340.
   pinMode(MQ_PIN,INPUT);pinMode(DUST_PIN,INPUT);analogReadResolution(12);
   analogSetPinAttenuation(DUST_PIN,ADC_11db);analogSetPinAttenuation(MQ_PIN,ADC_0db);
   (void)analogRead(DUST_PIN);
