@@ -1,0 +1,9 @@
+.env*
+!.env.example
+node_modules/
+.next/
+__pycache__/
+*.pem
+*serviceAccount*.json
+.vercel/
+firmware/build/
