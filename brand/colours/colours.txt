@@ -1,0 +1,15 @@
+VIGIL | 60–30–10 palette
+
+background: #F5F4EC
+surface: #DDE2C8
+text: #303D2B
+accent: #B2BD7E
+status-fresh: #6E916B
+status-ok: #B2BD7E
+status-stuffy: #C3A15E
+status-poor: #B66D5E
+
+60% Warm Ivory background and whitespace
+30% Olive Sage accent and Pale Moss surfaces combined
+10% Deep Forest text, controls and high-contrast elements
+Status colours are semantic accents, not additional fixed percentages. Use status labels/icons as well as colour; do not infer air-quality thresholds from these tokens. Use Deep Forest for normal text; do not use light sage or terracotta as small text on ivory without testing contrast.
