@@ -1,0 +1,62 @@
+{
+  "name": "mq135 v0",
+  "status": "imported firmware",
+  "sources": [
+    "inputs/code/VIGIL_Phase3_Fixed.ino:19-36",
+    "inputs/code/VIGIL_Phase3_Fixed.ino:92-127",
+    "inputs/code/VIGIL_Phase3_Fixed.ino:180-194",
+    "inputs/code/VIGIL_Phase3_Fixed.ino:295-299"
+  ],
+  "beta": [
+    -0.0978957479,
+    0.113921441,
+    0.0306626048,
+    0.0722774401,
+    -0.0166802
+  ],
+  "residual_median": -0.0130058485,
+  "residual_scale": 0.0478087528,
+  "alpha": 0.2,
+  "limit": 4.87158753,
+  "window": 5,
+  "confirmation": 3,
+  "warm_ms": 600000,
+  "adc_age_limit_ms": 1500,
+  "gap_ms": 20000,
+  "temperature_range": [
+    20.5,
+    28
+  ],
+  "humidity_range": [
+    63,
+    95
+  ],
+  "temperature_center_scale": [
+    25,
+    5
+  ],
+  "humidity_center_scale": [
+    75,
+    10
+  ],
+  "terms": [
+    "t",
+    "h",
+    "t*t",
+    "h*h",
+    "t*h"
+  ],
+  "anchor": null,
+  "anchor_fields": [
+    "r0",
+    "x0",
+    "t0",
+    "h0"
+  ],
+  "anchor_validation": "F98-109, valid and matching model_sig",
+  "response": "ln(r0/rs)-x0",
+  "predicted": "poly(T,RH)-poly(t0,h0)",
+  "score": "(response-predicted-residual_median)/residual_scale",
+  "ewma": "alpha*max(0,score)+(1-alpha)*previous; initial zero",
+  "alert": "full window with at least confirmation values strictly above limit"
+}

@@ -1,0 +1,92 @@
+{
+  "status": "reconstructed candidate only",
+  "beta": [
+    0.861118363153,
+    0.678650353596,
+    1.557222158896,
+    0.052086287197,
+    1.107304444915
+  ],
+  "residual_median": -0.001033679103,
+  "residual_robust_sd": 0.034110998027,
+  "segments": [
+    {
+      "file": "MQ135_CleanAir_empty_room_ventilated.csv",
+      "boot": 0,
+      "rows": 52,
+      "used": 0
+    },
+    {
+      "file": "MQ135_CleanAir_empty_room_ventilated.csv",
+      "boot": 1,
+      "rows": 941,
+      "used": 814,
+      "candidate_anchor": {
+        "r0": 3.4596999999999998,
+        "x0": 1.6709101029950308e-09,
+        "t0": 25.25,
+        "rh0": 81.785
+      }
+    },
+    {
+      "file": "MQ135_CleanAir_evening.csv",
+      "boot": 0,
+      "rows": 256,
+      "used": 256,
+      "candidate_anchor": {
+        "r0": 9.7021,
+        "x0": 0.0,
+        "t0": 23.64,
+        "rh0": 77.07
+      }
+    },
+    {
+      "file": "MQ135_CleanAir_new.csv",
+      "boot": 0,
+      "rows": 344,
+      "used": 344,
+      "candidate_anchor": {
+        "r0": 1.93455,
+        "x0": 8.350069799622638e-09,
+        "t0": 23.13,
+        "rh0": 93.56
+      }
+    },
+    {
+      "file": "MQ135_CleanAir_night.csv",
+      "boot": 0,
+      "rows": 345,
+      "used": 345,
+      "candidate_anchor": {
+        "r0": 6.7991,
+        "x0": 0.0,
+        "t0": 21.51,
+        "rh0": 87.01
+      }
+    },
+    {
+      "file": "MQ135_CleanAir_noon.csv",
+      "boot": 0,
+      "rows": 331,
+      "used": 233,
+      "candidate_anchor": {
+        "r0": 4.8844,
+        "x0": 0.0,
+        "t0": 25.98,
+        "rh0": 67.1
+      }
+    },
+    {
+      "file": "MQ135_CleanAir_occupied_212_3_people.csv",
+      "boot": 0,
+      "rows": 1009,
+      "used": 902,
+      "candidate_anchor": {
+        "r0": 3.1625,
+        "x0": 0.0,
+        "t0": 25.69,
+        "rh0": 80.96
+      }
+    }
+  ]
+}

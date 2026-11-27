@@ -1,0 +1,34 @@
+{
+  "name": "sharp v0",
+  "status": "imported provisional",
+  "sources": [
+    "inputs/code/VIGIL_Phase3_Fixed.ino:30-31",
+    "inputs/code/VIGIL_Phase3_Fixed.ino:130-143",
+    "inputs/code/VIGIL_Phase3_Fixed.ino:149-179",
+    "inputs/code/VIGIL_Phase3_Fixed.ino:293"
+  ],
+  "signal": "reconstructed ON mV",
+  "baseline_mv": 1458.52,
+  "robust_sd_mv": 147.585,
+  "low_mv": 1015.76,
+  "elevated_mv": 1901.28,
+  "high_mv": 2048.86,
+  "median_window": 30,
+  "reset_gap_ms": 2000,
+  "persistent_high_ms": 10000,
+  "stale_ms": 2500,
+  "period_us": 10000,
+  "sample_us": 280,
+  "pulse_us": 320,
+  "width_range_us": [
+    300,
+    340
+  ],
+  "sample_range_us": [
+    280,
+    300
+  ],
+  "pulses_per_aggregate": 100,
+  "min_good": 95,
+  "validity": "zero missed periods, finite ON >= low_mv/2; good ON excludes ADC rails"
+}
