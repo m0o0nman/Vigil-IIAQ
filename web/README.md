@@ -92,3 +92,7 @@ Vitest exercises the real parser, inference, route authorization and transaction
 - `tests/models.test.ts`, `tests/service.test.ts` — fixture parity, backend behavior and usage measurements.
 - `firebase.json`, `database.rules.json`, `firestore.rules`, `firestore.indexes.json` — Firebase configuration.
 - `package.json`, `package-lock.json`, `tsconfig.json`, `next.config.ts`, `next-env.d.ts`, `.env.example`, `.gitignore` and this handoff — build configuration, environment requirements and reproduction instructions.
+
+## Phase 4 calibration update
+
+The Phase 4 workflow now uses the existing calibration documents and routes for gated measurement, version activation and restore. For current request bodies, lifecycle states, quality evidence, quota planning and Phase 5 integration, see the [calibration handoff](../docs/phase4_calibration.md). The Phase 3 results above record the original backend baseline.

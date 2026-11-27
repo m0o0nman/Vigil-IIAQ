@@ -12,7 +12,7 @@ export function newRun(id:string,sensor:Sensor,started:number,boot:string|null,s
     first:null as number|null,windowStart:null as number|null,last:null as number|null,
     lastSeq:0,lastReceipt:started,lastScd:null as number|null,lastMq:null as number|null,
     lastPulse:null as number|null,firstScd:null as number|null,
-    warnings:[] as string[],maxCaptureGap:0,maxScdAge:0,maxMqAge:0,maxPulse:0,observations:0,count:0,co2:[] as number[],temps:[] as number[],humidity:[] as number[],
+    comparison:{} as Record<string,number>,warnings:[] as string[],maxCaptureGap:0,maxScdAge:0,maxMqAge:0,maxPulse:0,observations:0,count:0,co2:[] as number[],temps:[] as number[],humidity:[] as number[],
     rs:[] as number[],raw:[] as number[],filtered:[] as number[],gates:{} as Gates,
     candidate:null as Record<string,number>|null,ended:null as number|null
   }
