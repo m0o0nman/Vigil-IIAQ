@@ -59,7 +59,7 @@ npm.cmd run build
 npm.cmd exec -- next start
 ```
 
-The production entry point uses `next start` through npm because the repository has no `start` script. Public Firebase variables are read during the build. Rebuild after changing them. A normal build needs HTTPS access to Google Fonts. [Font failure workaround](troubleshooting.md#syne-and-build-access)
+The production entry point uses `next start` through npm because the repository has no `start` script. Public Firebase variables are read during the build. Rebuild after changing them. The build loads the bundled Syne Regular font. [Font troubleshooting](troubleshooting.md#syne-and-build-access)
 
 ## 4. Run the Linux host firmware checks if needed
 
@@ -76,4 +76,4 @@ g++ -std=c++17 -Wall -Wextra -Werror -Ifirmware/build/ArduinoJson-7.4.2/src firm
 firmware/build/reply
 ```
 
-Vitest checks the committed golden vectors directly. Optional regeneration of the C++ oracle output uses `python3 training/vectors.py` in Linux with NumPy and g++ available. Rebuilding the sketch for the real board and collecting browser screenshots are covered separately. [Arduino steps](esp32_setup.md) · [Browser harness and fixtures](phase5_ui.md#verification-commands)
+Vitest checks the committed golden vectors directly. Optional regeneration of the C++ oracle output uses `python3 training/vectors.py` in Linux with NumPy and g++ available. Rebuilding the sketch for the real board and collecting browser screenshots are covered separately. [Arduino steps](esp32_setup.md) · [Browser harness and fixtures](interface_redesign.md#verification)
