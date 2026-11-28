@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Download, Restore, useRead } from './actions'
-import { Frame, Orb } from './frame'
 import { Icon } from './icon'
 import { RequestError, useVigil } from './live'
 import type { CalibrationArchive } from '../src/readback'
@@ -21,7 +20,7 @@ type Progress = Partial<Omit<ReturnType<typeof summary>,'status'>> & { status:st
 function BreathBreak() {
   const [player,setPlayer]=useState(false)
   return <aside className="breath-break">
-    <Orb/><div className="prism" aria-hidden="true"><span/><span/><span/></div>
+    <div className="music-art" aria-hidden="true"><div className="prism"/><i/><i/><i/></div>
     <h2>Let the room settle.</h2>
     <p>Relax your shoulders. Take one easy breath.</p>
     {!player ? <button className="button" onClick={()=>setPlayer(true)}>Open music player</button> :
@@ -31,9 +30,10 @@ function BreathBreak() {
   </aside>
 }
 
-function CalibrationPanel() {
+export function Calibrate() {
   const {api,calibrating,connected,latest}=useVigil()
   const [sensor,setSensor]=useState<Sensor>('occupancy')
+  const [restored,setRestored]=useState(false)
   const [confirmed,setConfirmed]=useState(false)
   const [progress,setProgress]=useState<Progress|null>(null)
   const [busy,setBusy]=useState(false)
@@ -61,7 +61,7 @@ function CalibrationPanel() {
   async function act(action:'start'|'abort',body:object) {
     const previous=retry.current
     const key=previous?.action===action && JSON.stringify(previous.body)===JSON.stringify(body) ? previous.key : crypto.randomUUID()
-    setBusy(true);setError('')
+    setBusy(true);setError('');setRestored(false)
     try{
       const value=await api<Progress>('/api/calibrate/'+action,body,key)
       retry.current=null
@@ -83,6 +83,7 @@ function CalibrationPanel() {
   return <div className="page-section">
     <div className="page-heading"><p className="eyebrow">Sensor setup</p><h1>Calibrate</h1>
       <p>Give each sensor a stable reference for this room.</p></div>
+    {restored&&<p className="notice" role="status">Previous version restored.</p>}
     <div className="calibration-layout">
       <div className="calibration-main">
         <ol className="steps" aria-label="Calibration stages">
@@ -90,13 +91,13 @@ function CalibrationPanel() {
             <li key={name} aria-current={index===step?'step':undefined} data-complete={index<step && (!terminal||index===0||evaluating)}>{name}</li>)}
         </ol>
         {readError && <div className="notice" role="alert">Calibration status is unavailable. <button className="button compact" onClick={()=>setRefresh(n=>n+1)}>Retry status</button></div>}
-        {!progress&&!readError&&<p role="status">Loading calibration status…</p>}
+        {!progress&&!readError&&<p className="loading" role="status">Loading calibration status…</p>}
         {active ? <section className="light-panel" aria-label="Current calibration">
           <p className="eyebrow">{sensors[selectedSensor].name}</p>
           <h2>{step===1?'Sensor warm-up':'Measuring a stable window'}</h2>
           <p>{sensors[selectedSensor].guide}</p>
           {step===1?<p>{progress.observations??0} observations received.</p>:percent!==null&&<>
-            <progress value={percent} max={100} aria-label="Measured calibration window"/>
+            <div role="progressbar" className="progress-track" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percent)} aria-label="Measured calibration window"><span style={{transform: `scaleX(${percent/100})`}}/></div>
             <p>{((progress.window_elapsed_ms??0)/1000).toFixed(0)} of {(progress.window_required_ms??0)/1000} seconds measured · {progress.distinct_scd??0} distinct CO₂ samples</p>
           </>}
           {!connected && <p className="notice">Live connection lost. Waiting for a backend update.</p>}
@@ -118,7 +119,7 @@ function CalibrationPanel() {
             <div className="actions">
               {progress.session&&<Download id={progress.session}/>}
               {previousActive&&progress.source&&progress.sensor&&
-                <Restore model={progress.sensor} version={progress.source} onRestored={archive.reload}/>}
+                <Restore model={progress.sensor} version={progress.source} onRestored={()=>{setRestored(true);archive.reload()}}/>}
             </div>
           </section>}
           <form className="form-stack" onSubmit={event=>{
@@ -140,5 +141,3 @@ function CalibrationPanel() {
     </div>
   </div>
 }
-
-export function Calibrate() {return <Frame><CalibrationPanel/></Frame>}

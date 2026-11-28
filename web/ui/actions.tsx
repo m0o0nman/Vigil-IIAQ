@@ -39,17 +39,16 @@ export function Download({id,label='Download CSV'}: {id:string,label?:string}) {
   </div>
 }
 
-export function Restore({model,version,onRestored}: {model:string,version:string,onRestored?:()=>void}) {
+export function Restore({model,version,onRestored}: {model:string,version:string,onRestored:()=>void}) {
   const {api}=useVigil()
   const dialog=useRef<HTMLDialogElement>(null)
   const key=useRef('')
   const [pending,setPending]=useState(false)
-  const [message,setMessage]=useState('')
   const [error,setError]=useState('')
   return <div>
     <button className="button" onClick={()=>{
       key.current=crypto.randomUUID()
-      setError('');setMessage('');dialog.current?.showModal()
+      setError('');dialog.current?.showModal()
     }}>Restore previous calibration</button>
     <dialog ref={dialog} onCancel={event=>{if(pending)event.preventDefault()}} aria-label="Confirm calibration restore">
       <h2>Restore this version?</h2>
@@ -63,14 +62,12 @@ export function Restore({model,version,onRestored}: {model:string,version:string
           try{
             await api('/api/model/rollback',{model,version},key.current)
             dialog.current?.close()
-            setMessage('Previous version restored.')
-            onRestored?.()
+            onRestored()
           }catch{setError('The service could not confirm the restore. Retry to check the request.')}
           finally{setPending(false)}
         }}>{pending?'Restoring…':'Confirm restore'}</button>
       </div>
       {error&&<p role="alert">{error}</p>}
     </dialog>
-    <p role="status" className="support">{message}</p>
   </div>
 }

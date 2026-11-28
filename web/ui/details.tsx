@@ -2,9 +2,8 @@
 
 import { useMemo } from 'react'
 import Link from 'next/link'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Chart, type ChartRow } from './chart'
 import { Download, useRead } from './actions'
-import { Frame } from './frame'
 import { Icon } from './icon'
 import { useVigil } from './live'
 import { ages, reasons, statusOf } from './state'
@@ -13,37 +12,10 @@ import type { Analytics } from '../src/readback'
 
 const methodNames: Record<string, string> = { persistence:'Persistence', linear:'Linear', robust:'Robust' }
 const number=(v:number|null|undefined,digits=1)=>v==null?'—':v.toFixed(digits)
-type ChartRow = {t:number,[series:string]:number|null}
-type Series = {key:string,label:string,colour:string,dash?:string}
 const forest='var(--text)'
 const sage='color-mix(in srgb, var(--status-fresh) 70%, var(--text))'
 const amber='color-mix(in srgb, var(--status-stuffy) 66%, var(--text))'
 const rose='color-mix(in srgb, var(--status-poor) 76%, var(--text))'
-
-function Chart({title,unit,rows,series}: {title:string,unit:string,rows:ChartRow[],series:Series[]}) {
-  const available=rows.some(row=>series.some(({key})=>row[key]!=null))
-  return <section className="chart" aria-label={title}>
-    <h3>{title}</h3>
-    {!available?<p className="empty">No observations in this session window.</p>:<>
-      <div className="chart-legend">{series.map(entry=><span key={entry.key}><span className="legend-mark" style={{borderTopColor:entry.colour,borderTopStyle:entry.dash?'dashed':'solid'}} aria-hidden="true"/>{entry.label}</span>)}</div>
-      <div className="plot">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{width:480,height:215}}>
-          <LineChart data={rows} accessibilityLayer margin={{left:0,right:12,top:8,bottom:4}}>
-            <CartesianGrid vertical={false} stroke="var(--soft-rule)" />
-            <XAxis dataKey="t" type="number" domain={['dataMin','dataMax']} tickFormatter={t=>Math.round(t/60000)+'m'}
-              tick={{fontSize:12,fill:'var(--muted)'}} axisLine={false} tickLine={false} minTickGap={28}/>
-            <YAxis width={50} domain={['auto','auto']} tick={{fontSize:12,fill:'var(--muted)'}} axisLine={false} tickLine={false}/>
-            <Tooltip labelFormatter={t=>'Device uptime '+(Number(t)/60000).toFixed(1)+' min'}
-              formatter={(value,name)=>[typeof value==='number'?value.toFixed(1)+' '+unit:value,name]}
-              contentStyle={{background:'var(--background)',color:forest,borderColor:'var(--rule)',boxShadow:'none'}}/>
-            {series.map(s=><Line key={s.key} data={rows.filter(row=>Object.hasOwn(row,s.key))} dataKey={s.key} name={s.label} stroke={s.colour} strokeDasharray={s.dash}
-              strokeWidth={1.35} dot={false} activeDot={{r:3}} isAnimationActive={false} connectNulls={false}/>)}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </>}
-  </section>
-}
 
 function points(archive:Analytics|null){
   const recent=archive?.rows??[]
@@ -76,7 +48,7 @@ function points(archive:Analytics|null){
   return {readings,forecasts:[...target.values()].sort((a,b)=>a.t-b.t)}
 }
 
-function DetailsPanel() {
+export function Details() {
   const {latest, connected, now}=useVigil()
   const live=statusOf(latest,now,connected)
   const data=useRead<Analytics>(latest?'/api/export/'+latest.boot_id+'?view=analytics':null)
@@ -94,7 +66,7 @@ function DetailsPanel() {
       </div>
     </div>
     {data.error&&<p className="notice" role="alert">{data.error}</p>}
-    {data.pending&&<p role="status">Loading history…</p>}
+    {data.pending&&<p className="loading" role="status">Loading history…</p>}
     {!latest&&<p className="notice">History will appear after the first available device session.</p>}
     {data.data?.rows.length===0&&<p className="notice">No observations in this history window.</p>}
     {latest&&!live.deviceLive&&<p className="notice">The device is offline. History and the last reported snapshot are shown below.</p>}
@@ -156,4 +128,3 @@ function DetailsPanel() {
     </details>
   </div>
 }
-export function Details() {return <Frame><DetailsPanel/></Frame>}
