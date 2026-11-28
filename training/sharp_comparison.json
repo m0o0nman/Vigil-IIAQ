@@ -1,0 +1,12 @@
+{
+  "raw": {
+    "n": 3586,
+    "median_mv": 1498.29,
+    "robust_sd_mv": 192.782478
+  },
+  "rolling_medians": {
+    "n": 3557,
+    "median_mv": 1492.15,
+    "robust_sd_mv": 198.460836
+  }
+}

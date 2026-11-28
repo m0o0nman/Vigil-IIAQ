@@ -1,0 +1,12 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {"collectionGroup":"system","fieldPath":"view","indexes":[]},
+    {"collectionGroup":"system","fieldPath":"active","indexes":[]},
+    {"collectionGroup":"system","fieldPath":"bundle","indexes":[]},
+    {"collectionGroup":"sessions","fieldPath":"state","indexes":[]},
+    {"collectionGroup":"sessions","fieldPath":"open","indexes":[]},
+    {"collectionGroup":"minutes","fieldPath":"rows","indexes":[]},
+    {"collectionGroup":"versions","fieldPath":"spec","indexes":[]}
+  ]
+}

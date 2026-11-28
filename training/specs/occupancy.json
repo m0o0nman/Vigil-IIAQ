@@ -1,0 +1,33 @@
+{
+  "name": "occupancy v0",
+  "status": "imported, not re-derived: no measured training data supplied",
+  "sources": [
+    "inputs/code/vigil_occupancy_model.h:9-44",
+    "inputs/code/VIGIL_Phase3_Fixed.ino:70-89"
+  ],
+  "parameters": {
+    "TRAIN_ROOM_VOLUME_M3": 43.6079,
+    "HISTORICAL_EMPTY_CO2_PPM": 511.0,
+    "HISTORY_SECONDS": 60.0,
+    "MIN_HISTORY_SECONDS": 50.0,
+    "DELTA_SCALE_PPM": 100.0,
+    "RATE_SCALE_PPM_PER_MIN": 10.0,
+    "INTERCEPT": 3.176339566,
+    "BETA_DELTA": 3.276897848,
+    "BETA_RATE": 0.8872977638,
+    "TRAIN_DELTA_MIN": -11.61538462,
+    "TRAIN_DELTA_MAX": 391.1,
+    "TRAIN_RATE_MIN": -138.7419172,
+    "TRAIN_RATE_MAX": 28.51248862,
+    "MAX_PEOPLE": 16.0
+  },
+  "prototype_only": true,
+  "window_capacity": 24,
+  "gap_reset_ms": 30000,
+  "min_samples": 4,
+  "features": [
+    "window mean CO2 minus baseline (ppm)",
+    "least squares slope (ppm/min)"
+  ],
+  "display": "clamp then round to nearest even count, half upward"
+}

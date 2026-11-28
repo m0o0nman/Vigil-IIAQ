@@ -1,0 +1,13 @@
+{
+  "name": "forecast v0",
+  "sources": [
+    "inputs/code/VIGIL_Phase3_Fixed.ino:28,211,332",
+    "inputs/reference/test_backend.py:19-38"
+  ],
+  "horizon_minutes": 10,
+  "persistence": "latest fresh ppm",
+  "linear": "max(0, occupancy window mean + horizon_minutes*slope_ppm_min)",
+  "robust": "reconstructed median pairwise slope extrapolated from latest sample",
+  "historical_robust_parameters": null,
+  "historical_match_tolerance_ms": null
+}

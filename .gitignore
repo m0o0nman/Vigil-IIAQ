@@ -1,0 +1,10 @@
+.env*
+!.env.example
+node_modules/
+.next/
+__pycache__/
+*.pem
+*serviceAccount*.json
+.vercel/
+firmware/build/
+firmware/VigilV2/site_config.h

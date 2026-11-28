@@ -1,0 +1,9 @@
+Pink Floyd — Breathe (In The Air) (2023 Remaster)
+Official artist channel, YouTube
+Watch: https://www.youtube.com/watch?v=jcz0YxYl6Ac
+Embed: https://www.youtube-nocookie.com/embed/jcz0YxYl6Ac
+
+HTML iframe (click to play):
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/jcz0YxYl6Ac" title="Pink Floyd - Breathe (In The Air) (2023 Remaster)" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Internet required. Embed playback depends on YouTube availability, publisher restrictions, region and browser settings; not live-tested here. No audio is included.
