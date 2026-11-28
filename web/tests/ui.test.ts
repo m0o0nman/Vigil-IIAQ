@@ -23,7 +23,7 @@ describe('provisional display thresholds',()=>{
 })
 
 function syntheticLatest(): Latest {
-  const batch=parseBatch(JSON.parse(readFileSync('../firmware/README.md','utf8').split('```json\n')[1].split('\n```')[0]))
+  const batch=parseBatch(JSON.parse(readFileSync('../firmware/README.md','utf8').replace(/\r\n/g, '\n').split('```json\n')[1].split('\n```')[0]))
   batch.dropped_total=5
   const sample=batch.records[0]
   return {...infer(initial(),sample,batch,'sharp=v0'),boot_id:batch.boot_id,received_at:20000,decision_reason:'monitoring'}

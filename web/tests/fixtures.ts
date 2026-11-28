@@ -36,7 +36,7 @@ export class Memory implements Store{
     return this.view.revision
   }
 }
-const example:Batch=JSON.parse(readFileSync('../firmware/README.md','utf8').split('```json\n')[1].split('\n```')[0])
+const example:Batch=JSON.parse(readFileSync('../firmware/README.md','utf8').replace(/\r\n/g, '\n').split('```json\n')[1].split('\n```')[0])
 export function batch(seq=1,t=seq*1000):Batch{
   const b=structuredClone(example),r=b.records[0]
   Object.assign(r,{seq,uptime_ms:t})
