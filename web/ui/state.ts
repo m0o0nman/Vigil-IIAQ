@@ -1,3 +1,4 @@
+import type { Projection } from '../src/store'
 import type { Result } from '../src/engine'
 import { co2Status, humidityStatus } from './bands'
 
@@ -64,4 +65,24 @@ export function statusOf(latest: Latest | null, now: number, connected: boolean)
 
 export function observationTime(latest: Latest) {
   return latest.received_at - elapsed(latest.sample.uptime_ms, latest.sample.scd40.at_ms)
+}
+
+// /buffer and /live/latest arrive on separate listeners. Match the snapshot
+// endpoint before displaying a window, including immediately after a reboot.
+export function recentRows(recent: Projection['buffer'] | null, latest: Latest | null) {
+  if (!latest || !recent || recent[latest.sample.seq]?.t !== latest.capture_ms) return []
+  const points: {t:number, ppm:number|null}[] = []
+  let previous: {seq:number, t:number}|null = null
+  const entries = Object.entries(recent).filter(([,entry]) => entry != null)
+    .sort(([a],[b]) => Number(a)-Number(b))
+  for (const [key, entry] of entries) {
+    const seq = Number(key)
+    if (seq > latest.sample.seq || entry.t > latest.capture_ms) continue
+    if (previous && (seq !== previous.seq+1 || entry.t-previous.t > ages.control)) {
+      points.push({t:(previous.t+entry.t)/2, ppm:null})
+    }
+    points.push({t:entry.t, ppm:entry.ppm})
+    previous = {seq, t:entry.t}
+  }
+  return points
 }

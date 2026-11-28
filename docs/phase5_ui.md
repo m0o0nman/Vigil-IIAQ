@@ -1,5 +1,7 @@
 # Phase 5 · Consumer interface
 
+This report records the original Phase 5 release. The current interface and browser harness are documented in the [redesign report](interface_redesign.md).
+
 VIGIL uses a light ivory layout, forest text and the supplied branching logo. A shared editorial grid aligns headers, panels and chart sections. The monitor foregrounds the CO₂ reading and room status, with the breathing orb as a visual anchor. Details and Settings hold observation history and owner actions.
 
 ## Screens and integration

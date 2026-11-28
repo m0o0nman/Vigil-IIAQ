@@ -1,6 +1,8 @@
 'use client'
 
 import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
+import type { Projection } from '../src/store'
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth'
 import { getDatabase, onValue, ref } from 'firebase/database'
@@ -34,6 +36,7 @@ async function request(user: User, url: string, body?: object, key?: string) {
 type Access = 'loading'|'signed-out'|'checking'|'owner'|'unauthorized'|'unavailable'|'unconfigured'
 export type VigilState = {
   access: Access
+  recent: Projection['buffer'] | null
   latest: Latest | null
   connected: boolean
   liveReady: boolean
@@ -61,6 +64,8 @@ export function VigilProvider({children}: {children: ReactNode}) {
   const [user, setUser] = useState<User | null>(null)
   const [app, setApp] = useState<ReturnType<typeof initializeApp> | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const path = usePathname()
+  const [recent, setRecent] = useState<Projection['buffer'] | null>(null)
   const [latest, setLatest] = useState<Latest | null>(null)
   const [lastValid, setLastValid] = useState<number | null>(null)
   const [connected, setConnected] = useState(false)
@@ -76,7 +81,7 @@ export function VigilProvider({children}: {children: ReactNode}) {
       const instance = getApps()[0] ?? initializeApp(config)
       setApp(instance)
       return onAuthStateChanged(getAuth(instance), identity => {
-        setLatest(null); setLastValid(null); setConnected(false); setReady(false); setLiveError(false)
+        setRecent(null); setLatest(null); setLastValid(null); setConnected(false); setReady(false); setLiveError(false)
         setRequested(null); setCalibrating(null); setUser(identity)
         setAccess(identity ? 'checking' : 'signed-out')
       }, () => setAccess('unavailable'))
@@ -116,13 +121,19 @@ export function VigilProvider({children}: {children: ReactNode}) {
     return () => { unsubscribe.forEach(stop => stop()); window.clearInterval(timer) }
   }, [access, app])
 
+  useEffect(() => {
+    if (access !== 'owner' || !app || path !== '/breathe') return
+    const stop = onValue(ref(getDatabase(app), 'buffer'), snapshot => setRecent(snapshot.val()), () => setRecent(null))
+    return () => { stop(); setRecent(null) }
+  }, [access, app, path])
+
   const api = useCallback(async <T,>(path: string, body?: object, key?: string): Promise<T> => {
     if (!user || access !== 'owner') throw new Error('Owner sign-in is required.')
     return await (await request(user, path, body, key)).json() as T
   }, [user, access])
 
   const value: VigilState = {
-    access, latest, connected, liveReady, liveError, now, lastValid, requested, calibrating, api,
+    access, latest, connected, liveReady, liveError, now, lastValid, requested, calibrating, recent, api,
     async signIn(email, password) {
       if (!app) throw new Error('Firebase is unavailable.')
       await signInWithEmailAndPassword(getAuth(app), email, password)

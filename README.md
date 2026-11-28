@@ -38,7 +38,7 @@ The device preserves capture sequence, uptime and boot identity. A bounded RAM q
 
 Use the classic ESP32 **NodeMCU-32S**, a supported USB data cable, Sensirion SCD40, the project's MQ135 measurement circuit, Sharp GP2Y1010AU0F optical sensor and the existing fan-driver assembly. The original sketch documents GPIOs, acquisition timing and reconstruction factors. The sensor breakout power rails, physical driver schematic and component ratings require review of the actual assembly before applying power. A scope or logic analyzer and a safe indicator load support bench verification. [Wiring and source lines](docs/esp32_setup.md)
 
-The documented development setup uses Git, Windows PowerShell, Node.js 24 with npm, Python 3.12 with NumPy, and Arduino IDE 2 with ESP32 core 2.0.17. Linux/WSL with g++ supports the host firmware tests and C++ golden-vector oracle. A browser and internet access are required for the Firebase workflow and normal Syne font build. Cloud use requires an authorized Firebase project and a Vercel account. [Versions and commands](docs/windows_setup.md)
+The documented development setup uses Git, Windows PowerShell, Node.js 24 with npm, Python 3.12 with NumPy, and Arduino IDE 2 with ESP32 core 2.0.17. Linux/WSL with g++ supports the host firmware tests and C++ golden-vector oracle. A browser and internet access are required for the Firebase workflow. The web build bundles Syne Regular from the repository. Cloud use requires an authorized Firebase project and a Vercel account. [Versions and commands](docs/windows_setup.md)
 
 ## What VIGIL measures
 
@@ -87,10 +87,10 @@ The owner confirms room conditions before starting a calibration. The backend re
 | Evidence | Status |
 |---|---|
 | Phase 1 model fixtures | Five offline tests pass. Golden vectors are synthetic and check numerical agreement only. |
-| Backend and UI | 43 Vitest cases cover golden vectors, authorization, sequencing, replay, calibration and display boundaries with synthetic data and mocked transactions. |
-| Browser | Chromium renders desktop, tablet and mobile screens using labelled fixtures. The Phase 5 report includes the screenshots. |
-| Production build | Local webpack build passes using an official Syne font test response. Normal Google Fonts access remains blocked in this environment. |
+| Backend and UI | 45 Vitest cases cover golden vectors, authorization, sequencing, replay, calibration and display boundaries with synthetic data and mocked transactions. |
+| Browser | Chromium renders desktop, tablet and mobile screens using labelled fixtures. The redesign report includes all six screens at desktop and mobile sizes. |
+| Production build | The ordinary Next.js production build passes with the bundled Syne Regular font. |
 | ESP32 and cloud | Firmware host checks cover control, queue, replies and acquisition gate parity. The target build, real Wi-Fi, TLS, Firebase, Vercel and physical integration remain unverified. |
 | Experimental scope | Sensor categories describe prototype observations. Occupancy is approximate, MQ135 and Sharp response are relative, and calibration gates remain provisional. YouTube playback remains unverified. |
 
-Review the third-party reference artwork permission before public or commercial use of the supplied logo. Plan quota and retention before any continuous operation. [Phase 6 verification](docs/phase6_verification.md) · [Browser evidence](docs/phase5_ui.md#browser-evidence) · [Brand kit provenance](inputs/brand/README.txt)
+The supplied logo and Roger Waters photograph require rights confirmation before public use. Plan quota and retention before any continuous operation. [Phase 6 verification](docs/phase6_verification.md) · [Redesign and screenshots](docs/interface_redesign.md) · [Brand kit provenance](inputs/brand/README.txt)

@@ -1,13 +1,7 @@
 'use client'
-// Synthetic presentation harness, loaded only by a temporary local test route.
-import { useEffect, useState } from 'react'
+// Synthetic context for the isolated browser test build. Production imports VigilProvider.
+import { useEffect, useState, type ReactNode } from 'react'
 import { VigilContext, type VigilState } from '../ui/live'
-import { Welcome } from '../ui/welcome'
-import { Dashboard } from '../ui/dashboard'
-import { Calibrate } from '../ui/calibrate'
-import { Details } from '../ui/details'
-import { Settings } from '../ui/settings'
-import { Frame } from '../ui/frame'
 import type { Latest, Requested } from '../ui/state'
 
 const boot='00112233445566778899aabbccddeeff'
@@ -19,7 +13,7 @@ const rows=Array.from({length:80},(_,i)=>({
   dustOn:1450+18*Math.sin(i),dustFiltered:1451+3*Math.cos(i/9),fan:i>58&&i<66,fanReason:'backend',gap:0,
   forecast:{persistence:570+i/2,linear:560+i/3,robust:565+i*.4}
 }))
-export default function Fixture() {
+export function FixtureProvider({children}: {children:ReactNode}) {
   const [screen,setScreen]=useState('')
   useEffect(()=>setScreen(new URLSearchParams(window.location.search).get('screen')??'welcome'),[])
   const [requested,setRequested]=useState<Requested>({mode:'auto',expires:0})
@@ -28,7 +22,7 @@ export default function Fixture() {
   const [fail,setFail]=useState(false)
   const age=screen==='stale'?20000:0
   const latest={
-    boot_id:boot,received_at:time,versions:'occupancy=v0;mq135=v0;sharp=v0;forecast=v0',decision_reason:'monitoring',
+    boot_id:boot,capture_ms:1200000,received_at:time,versions:'occupancy=v0;mq135=v0;sharp=v0;forecast=v0',decision_reason:'monitoring',
     sample:{seq:120,uptime_ms:1200000,fan_on:screen==='override',local_override:screen==='override',fan_reason:screen==='override'?'minimum_runtime':'no_command',
       scd40:{at_ms:1199800,co2_ppm:584,temperature_c:24.1,rh_pct:48,valid:true,control_fresh:true},
       mq135:{at_ms:1199950,valid:true,fresh:true,adc_raw:410,gpio_v:.46,ao_v:.92,rs_kohm:4.43},
@@ -40,6 +34,9 @@ export default function Fixture() {
   const state:VigilState={
     access: screen==='login'?'signed-out':screen==='blocked'?'unauthorized':'owner',
     connected:true,liveReady:true,liveError:false,now:time+age,latest:shown,lastValid:shown?time-200:null,
+    recent:shown ? Object.fromEntries(Array.from({length:61},(_,i)=>[
+      60+i, {t:900000+i*5000,ppm:Math.round(584+(i-60)*.5+8*Math.sin((i-60)/5)),fan:false},
+    ])) : null,
     requested,calibrating:progress.session,
     async signIn(){throw Error('synthetic auth error')},async signOut(){},retry(){},
     async api<T>(path:string,body?:object):Promise<T>{
@@ -54,6 +51,7 @@ export default function Fixture() {
         value={mode,expires:mode==='freshen'?time+10000:0}
         setRequested(value as Requested)
       }
+      if(path==='/api/model/rollback')value={ok:true}
       if(path==='/api/calibrate/start'){
         value={...progress,status:'measuring',session,sensor:(body as {sensor:string}).sensor}
         setProgress(value as typeof progress)
@@ -64,10 +62,14 @@ export default function Fixture() {
       }
       return value as T
     },
-    async download(){},
+    async download(id){
+      const a=document.createElement('a')
+      a.href='data:text/csv;charset=utf-8,synthetic%2Cfixture'
+      a.download='synthetic-'+id+'.csv'
+      a.click()
+    },
   }
-  return <VigilContext.Provider value={state}><div style={{position:'fixed',inset:'auto 12px 10px auto',zIndex:40,padding:'5px 10px',background:'var(--text)',color:'var(--background)',borderRadius:8,fontSize:12}}>Synthetic test data</div>
-    {screen==='welcome'?<Welcome/>:screen==='calibrate'?<Calibrate/>:screen==='details'?<Details/>:screen==='settings'?<Settings/>:
-      screen==='login'||screen==='blocked'?<Frame>{null}</Frame>:<Dashboard/>}
+  return <VigilContext.Provider value={state}>{children}
+    <p style={{margin:'8px auto',textAlign:'center',fontSize:12}}>Synthetic test data</p>
   </VigilContext.Provider>
 }

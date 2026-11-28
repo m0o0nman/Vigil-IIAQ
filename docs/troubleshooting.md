@@ -19,33 +19,4 @@
 
 ## Syne and build access
 
-The normal build retrieves Syne through `next/font/google`. From Windows, check the exact CSS URL with PowerShell and verify access to the referenced font host from the build network:
-
-```powershell
-Invoke-WebRequest -Uri 'https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap'
-```
-
-If access is blocked, use an authorized network or HTTPS proxy that can reach `fonts.googleapis.com` and `fonts.gstatic.com`. Set the platform-provided trusted `HTTPS_PROXY` URL if the network administrator supplies one. Keep TLS verification enabled. Retry the normal `npm.cmd run build` on Windows or in the intended Vercel project after establishing access.
-
-A **local verification workaround** uses Next's test-response hook with the official Syne variable TTF. Run this in Linux or WSL from the repository root, with web dependencies installed. The hook and font file belong in ignored build storage. Use the normal font-fetch path for a release.
-
-```sh
-mkdir -p firmware/build/phase6-font
-curl -fLsS 'https://raw.githubusercontent.com/google/fonts/main/ofl/syne/Syne%5Bwght%5D.ttf' -o firmware/build/phase6-font/Syne.ttf
-cat > firmware/build/phase6-font/font-test.cjs <<'JS'
-const path = require('node:path')
-const font = path.join(__dirname, 'Syne.ttf')
-module.exports = {
-  'https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap':
-    "/* latin */\n@font-face { font-family: 'Syne'; font-style: normal; font-weight: 400 800; font-display: swap; src: url(" +
-    font + ") format('truetype'); }",
-}
-JS
-(
-  cd web
-  NEXT_FONT_GOOGLE_MOCKED_RESPONSES="$(realpath ../firmware/build/phase6-font/font-test.cjs)" \
-    NEXT_TELEMETRY_DISABLED=1 npm run build -- --webpack
-)
-```
-
-The Phase 6 normal build failed because the Google Fonts endpoint returned HTTP 403 in this environment. The verification record distinguishes the local workaround from the normal build and deployment. [Official Syne source](https://github.com/google/fonts/tree/main/ofl/syne) · [Next.js font guide](https://nextjs.org/docs/app/getting-started/fonts) · [Build evidence](phase6_verification.md)
+The redesigned interface loads the bundled Syne Regular WOFF2 through `next/font/local`. If the font is missing during compilation, check that the builder has the tracked asset at `web/public/brand/fonts/syne-regular.woff2` and the matching source path in `web/app/layout.tsx`. Run `npm run build` from `web`. Chromium’s Network panel should show a successful same-origin request under `/_next/static/media/`. The earlier Phase 5 and 6 builds used a Google Fonts test response. [Official Syne source](https://github.com/google/fonts/tree/main/ofl/syne) · [Redesign verification](interface_redesign.md)

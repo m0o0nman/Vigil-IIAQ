@@ -18,9 +18,11 @@ A documentation check resolved 52 relative file links and confirmed 21 integrati
 
 ## Unresolved checks
 
-### Normal Next.js production build
+### Normal Next.js production build at Phase 6
 
-From web/, `NEXT_TELEMETRY_DISABLED=1 npm run build` exited 1 with `Failed to fetch Syne from Google Fonts`. A direct fetch of the configured CSS endpoint returned HTTP 403. The local workaround substitutes a test response containing the official font for the build fetch, while keeping the application's `next/font/google` configuration. Run the normal command on the authorized builder before release. [Exact workaround](troubleshooting.md#syne-and-build-access)
+The subsequent interface redesign bundles the owner-approved local font and passes the ordinary build. [Current build evidence](interface_redesign.md)
+
+From web/, `NEXT_TELEMETRY_DISABLED=1 npm run build` exited 1 with `Failed to fetch Syne from Google Fonts`. A direct fetch of the configured CSS endpoint returned HTTP 403. The local workaround substitutes a test response containing the official font for the build fetch, while keeping the application's `next/font/google` configuration. Run the normal command on the authorized builder before release. [Original build procedure](phase5_ui.md#verification-commands)
 
 ### ESP32 target build
 

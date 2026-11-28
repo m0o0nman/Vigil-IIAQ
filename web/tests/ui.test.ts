@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { co2Status, humidityStatus } from '../ui/bands'
-import { observationTime, statusOf, type Latest } from '../ui/state'
+import { observationTime, recentRows, statusOf, type Latest } from '../ui/state'
 import { initial, process as infer } from '../src/engine'
 import { parseBatch } from '../src/protocol'
 import { exportRoute, ownerRoute } from '../src/http'
@@ -60,4 +60,21 @@ it('requires authentication before opening session analytics',async()=>{
   const boot='00112233445566778899aabbccddeeff'
   const url='http://local/api/export/'+boot+'?view=analytics'
   expect((await exportRoute(new Request(url),boot)).status).toBe(401)
+})
+
+describe('monitor history from the synthetic RTDB window',()=>{
+  const latest=syntheticLatest()
+  latest.sample.seq=8
+  latest.capture_ms=20000
+  const row=(t:number,ppm:number|null)=>({t,ppm,fan:false})
+  it('waits for matching sequence and capture time across listener updates',()=>{
+    expect(recentRows({7:row(19000,610)},latest)).toEqual([])
+    expect(recentRows({8:row(2000,610)},latest)).toEqual([])
+  })
+  it('preserves sequence gaps, unavailable readings and the latest capture boundary',()=>{
+    const buffer={4:row(15000,608),6:row(18000,609),7:row(19000,null),8:row(20000,610),9:row(21000,615)}
+    expect(recentRows(buffer,latest)).toEqual([
+      {t:15000,ppm:608},{t:16500,ppm:null},{t:18000,ppm:609},{t:19000,ppm:null},{t:20000,ppm:610},
+    ])
+  })
 })
